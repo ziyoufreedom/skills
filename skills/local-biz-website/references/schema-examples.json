@@ -1,0 +1,126 @@
+{
+  "_comment": "Schema Markup Templates for Local Service Business",
+
+  "LocalBusiness_Spa": {
+    "@context": "https://schema.org",
+    "@type": "Spa",
+    "name": "{business_name}",
+    "url": "https://{domain}",
+    "telephone": "{phone}",
+    "email": "{email}",
+    "description": "{meta_description of home page}",
+    "priceRange": "{price_range}",
+    "address": {
+      "@type": "PostalAddress",
+      "streetAddress": "{street}",
+      "addressLocality": "{city}",
+      "addressRegion": "{state}",
+      "postalCode": "{zip}",
+      "addressCountry": "US"
+    },
+    "geo": {
+      "@type": "GeoCoordinates",
+      "latitude": "{lat}",
+      "longitude": "{lng}"
+    },
+    "openingHoursSpecification": [
+      {
+        "@type": "OpeningHoursSpecification",
+        "dayOfWeek": ["Monday","Tuesday","Wednesday","Thursday","Friday"],
+        "opens": "10:00",
+        "closes": "20:00"
+      },
+      {
+        "@type": "OpeningHoursSpecification",
+        "dayOfWeek": ["Saturday","Sunday"],
+        "opens": "10:00",
+        "closes": "18:00"
+      }
+    ],
+    "sameAs": [
+      "{google_business_url}",
+      "{yelp_url}",
+      "{facebook_url}"
+    ],
+    "hasMap": "{google_maps_url}",
+    "image": "https://{domain}/images/spa-exterior.jpg"
+  },
+
+  "Service_Page": {
+    "@context": "https://schema.org",
+    "@type": "Service",
+    "name": "{service_name} in {city}",
+    "description": "{service_description}",
+    "provider": {
+      "@type": "Spa",
+      "name": "{business_name}",
+      "url": "https://{domain}"
+    },
+    "areaServed": {
+      "@type": "City",
+      "name": "{city}"
+    },
+    "serviceType": "{service_name}",
+    "offers": {
+      "@type": "Offer",
+      "price": "{price}",
+      "priceCurrency": "USD"
+    }
+  },
+
+  "FAQPage": {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "How much does {service_name} cost in {city}?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "At {business_name}, {service_name} starts at ${price}. We offer..."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Do I need to make an appointment?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "We recommend booking in advance online at {booking_link} or by calling {phone}."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Where is {business_name} located?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "{business_name} is located at {address}, {city}. We serve clients throughout {service_area}."
+        }
+      }
+    ]
+  },
+
+  "BreadcrumbList": {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      {
+        "@type": "ListItem",
+        "position": 1,
+        "name": "Home",
+        "item": "https://{domain}"
+      },
+      {
+        "@type": "ListItem",
+        "position": 2,
+        "name": "Services",
+        "item": "https://{domain}/services"
+      },
+      {
+        "@type": "ListItem",
+        "position": 3,
+        "name": "{Service Name}",
+        "item": "https://{domain}/services/{service-slug}"
+      }
+    ]
+  }
+}
