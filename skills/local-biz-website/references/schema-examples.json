@@ -1,15 +1,15 @@
 {
-  "_comment": "Schema Markup Templates for Local Service Business",
+  "_comment": "Schema Markup Templates for Local Service Business. Prices are OPTIONAL — omit the 'offers' block if client restricts pricing.",
 
-  "LocalBusiness_Spa": {
+  "LocalBusiness_MassageTherapy": {
     "@context": "https://schema.org",
-    "@type": "Spa",
+    "@type": "MassageTherapy",
     "name": "{business_name}",
     "url": "https://{domain}",
     "telephone": "{phone}",
     "email": "{email}",
-    "description": "{meta_description of home page}",
-    "priceRange": "{price_range}",
+    "foundingDate": "{year}",
+    "priceRange": "{$$}",
     "address": {
       "@type": "PostalAddress",
       "streetAddress": "{street}",
@@ -26,45 +26,67 @@
     "openingHoursSpecification": [
       {
         "@type": "OpeningHoursSpecification",
-        "dayOfWeek": ["Monday","Tuesday","Wednesday","Thursday","Friday"],
-        "opens": "10:00",
+        "dayOfWeek": ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"],
+        "opens": "09:00",
         "closes": "20:00"
       },
       {
         "@type": "OpeningHoursSpecification",
-        "dayOfWeek": ["Saturday","Sunday"],
+        "dayOfWeek": "Sunday",
         "opens": "10:00",
         "closes": "18:00"
       }
     ],
     "sameAs": [
       "{google_business_url}",
-      "{yelp_url}",
-      "{facebook_url}"
+      "{facebook_url}",
+      "{instagram_url}"
     ],
-    "hasMap": "{google_maps_url}",
-    "image": "https://{domain}/images/spa-exterior.jpg"
+    "areaServed": [
+      { "@type": "City", "name": "{primary_city}" },
+      { "@type": "City", "name": "{nearby_city_1}" },
+      { "@type": "City", "name": "{nearby_city_2}" }
+    ],
+    "paymentAccepted": "Cash, Credit Card, HSA, FSA"
   },
 
   "Service_Page": {
     "@context": "https://schema.org",
     "@type": "Service",
     "name": "{service_name} in {city}",
-    "description": "{service_description}",
+    "url": "https://{domain}/services/{service-slug}",
     "provider": {
-      "@type": "Spa",
+      "@type": "MassageTherapy",
       "name": "{business_name}",
-      "url": "https://{domain}"
+      "telephone": "{phone}",
+      "address": {
+        "@type": "PostalAddress",
+        "streetAddress": "{street}",
+        "addressLocality": "{city}",
+        "addressRegion": "{state}",
+        "postalCode": "{zip}",
+        "addressCountry": "US"
+      }
     },
     "areaServed": {
       "@type": "City",
       "name": "{city}"
     },
-    "serviceType": "{service_name}",
-    "offers": {
-      "@type": "Offer",
-      "price": "{price}",
-      "priceCurrency": "USD"
+    "serviceType": "{service_name}"
+  },
+
+  "Article_Guide": {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "headline": "{article_title}",
+    "url": "https://{domain}/guides/{slug}",
+    "author": {
+      "@type": "Organization",
+      "name": "{business_name}"
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": "{business_name}"
     }
   },
 
@@ -72,14 +94,6 @@
     "@context": "https://schema.org",
     "@type": "FAQPage",
     "mainEntity": [
-      {
-        "@type": "Question",
-        "name": "How much does {service_name} cost in {city}?",
-        "acceptedAnswer": {
-          "@type": "Answer",
-          "text": "At {business_name}, {service_name} starts at ${price}. We offer..."
-        }
-      },
       {
         "@type": "Question",
         "name": "Do I need to make an appointment?",
@@ -90,10 +104,18 @@
       },
       {
         "@type": "Question",
+        "name": "Do you accept insurance?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes, we accept medical insurance, auto insurance (PIP), and workers' compensation. Call us for details."
+        }
+      },
+      {
+        "@type": "Question",
         "name": "Where is {business_name} located?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "{business_name} is located at {address}, {city}. We serve clients throughout {service_area}."
+          "text": "{business_name} is located at {address}. We serve clients throughout {service_area}."
         }
       }
     ]
