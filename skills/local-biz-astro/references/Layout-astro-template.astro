@@ -1,0 +1,142 @@
+---
+/**
+ * SiteLayout.astro — full <head> + shell template for local-biz-astro projects.
+ *
+ * Copy to src/layouts/SiteLayout.astro. Every page wraps its content with:
+ *
+ *   <SiteLayout title=... description=... jsonLd={[...]}>
+ *     <page content />
+ *   </SiteLayout>
+ *
+ * What this file does:
+ *  - Emits canonical <link> + <title> + <meta description> (from props)
+ *  - Emits OG / Twitter tags (incl. article:* when ogType="article")
+ *  - Emits one JSON-LD @graph block from the jsonLd prop (array of helper outputs)
+ *  - Preloads self-hosted woff2 fonts (not Google Fonts)
+ *  - Renders <Navbar> + <slot/> + <Footer>
+ *  - Ships ZERO JS on a default page; islands only when descendants opt in
+ */
+import "@/styles/global.css";
+import Navbar from "@/components/Navbar.astro";
+import Footer from "@/components/Footer.astro";
+import { business } from "@/lib/content/business";
+
+export interface Props {
+  title: string;
+  description: string;
+  /** Absolute or root-relative path; falls back to /images/og/og-default.webp */
+  ogImage?: string;
+  /** Array of schema.org objects — helpers in src/lib/seo/schemas.ts return ready-to-embed objects */
+  jsonLd?: Record<string, unknown>[];
+  /** Override default robots directive; default "index,follow" */
+  robots?: string;
+  /** OG type — "website" (default) or "article" for services/locations/guides */
+  ogType?: "website" | "article" | "profile";
+  /** Emitted when ogType === "article" */
+  article?: {
+    publishedTime: string;  // ISO date YYYY-MM-DD
+    modifiedTime?: string;
+    section?: string;
+    authorName?: string;
+    tags?: string[];
+  };
+  /** Override default body class; useful for brand switching via data-brand attr */
+  bodyClass?: string;
+  /** Data attribute for multi-brand design-token switch (e.g., "yangs-spa") */
+  brand?: string;
+}
+
+const {
+  title,
+  description,
+  ogImage,
+  jsonLd,
+  robots = "index,follow",
+  ogType = "website",
+  article,
+  bodyClass = "",
+  brand,
+} = Astro.props;
+
+// Canonical URL — always absolute, always the configured site domain
+const canonical = new URL(Astro.url.pathname, Astro.site).toString();
+
+// OG image URL — default to /images/og/og-default.webp (ship a 1200x630 file there)
+const ogUrl = new URL(ogImage ?? "/images/og/og-default.webp", Astro.site).toString();
+
+// Collapse all JSON-LD objects into one @graph block — easier for Google
+// to deduplicate @id-linked nodes (Organization referenced from multiple Articles).
+const graph = jsonLd && jsonLd.length > 0
+  ? { "@context": "https://schema.org", "@graph": jsonLd }
+  : null;
+---
+<!doctype html>
+<html lang="en" data-brand={brand}>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="hsl(var(--primary))" />
+    <meta name="generator" content={Astro.generator} />
+
+    {/* Favicons — generate a 16/32/64 PNG set + favicon.ico (ImageMagick or pillow) */}
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="64x64" href="/favicon-64x64.png" />
+    <link rel="shortcut icon" href="/favicon.ico" />
+    <link rel="apple-touch-icon" href="/logo.png" />
+
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta name="robots" content={robots} />
+    <link rel="canonical" href={canonical} />
+
+    {/* Open Graph */}
+    <meta property="og:type" content={ogType} />
+    <meta property="og:site_name" content={business.name} />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content={ogUrl} />
+    <meta property="og:image:alt" content={title} />
+    <meta property="og:url" content={canonical} />
+    {ogType === "article" && article && (
+      <>
+        <meta property="article:published_time" content={article.publishedTime} />
+        {article.modifiedTime && <meta property="article:modified_time" content={article.modifiedTime} />}
+        {article.section && <meta property="article:section" content={article.section} />}
+        {article.authorName && <meta property="article:author" content={article.authorName} />}
+        {article.tags && article.tags.map((t) => <meta property="article:tag" content={t} />)}
+      </>
+    )}
+
+    {/* Twitter Card */}
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogUrl} />
+
+    {/*
+      Self-hosted fonts (zero external requests).
+      Place woff2 in public/fonts/ (latin subset only); see SKILL.md §5.7.
+      Preloading + display:swap eliminates blank-text flash.
+    */}
+    <link rel="preload" href="/fonts/playfair-display-latin.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="stylesheet" href="/fonts/fonts.css" />
+
+    {/*
+      JSON-LD @graph block. Single script, all helper outputs combined.
+      Escape < to avoid breaking out of the script tag in edge cases.
+    */}
+    {graph && (
+      <script is:inline type="application/ld+json" set:html={JSON.stringify(graph).replace(/</g, "\\u003c")} />
+    )}
+  </head>
+  <body class:list={["flex min-h-screen flex-col bg-paper text-ink", bodyClass]}>
+    <Navbar />
+    <main class="flex-1">
+      <slot />
+    </main>
+    <Footer />
+  </body>
+</html>

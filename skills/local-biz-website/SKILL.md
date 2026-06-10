@@ -59,6 +59,8 @@ With build-time prerender:
 
 6. **Verify after every build** — grep `dist/` for page-specific titles to confirm prerender worked
 
+7. **All `.md` files must be gitignored** — add `*.md` to `.gitignore` in every project. Never commit CLAUDE.md, checklist.md, or any other markdown files.
+
 ### What This Replaces
 
 These patterns are BANNED in new projects and should be migrated in existing ones:
@@ -229,10 +231,25 @@ grep -roh 'to="[^"]*"' src/pages/ | sort -u  # compare against App.tsx routes
 ### Content Rules
 - Respect `content_restrictions` from project.json (e.g., if "no_prices" → never show dollar amounts)
 - Target keyword appears naturally 3-5x per page, no stuffing
-- Tone: professional but warm, local and approachable
 - Word count: Home 600-800w, Service 500-700w, Location 400-600w, Guide 700-1000w
 - Always use actual city/neighborhood names — never "your city"
 - Every page ends with a booking CTA
+
+### ⚠️ MANDATORY: Human-Sounding Content (Anti-AI Voice)
+
+All generated text MUST read like it was written by a real human expert, not AI. This applies to every piece of content: page copy, descriptions, FAQs, guide articles, meta descriptions — everything.
+
+**Rules:**
+1. **Vary sentence length.** Mix short punchy sentences with longer ones. "It works. And honestly, that's what matters most when you've been dealing with lower back pain for months and nothing else has helped."
+2. **Add slight imperfection.** Real writers use dashes, fragments, and casual asides. Not every sentence needs a subject-verb-object structure.
+3. **Avoid repetitive patterns.** Never start 3+ consecutive sentences or bullet points with the same structure. If you catch yourself writing "Our X provides... Our Y delivers... Our Z offers..." — rewrite immediately.
+4. **Use specific details.** Don't say "our experienced therapists." Say "our team of 15+ licensed therapists, several with 10+ years of experience in deep tissue and sports recovery."
+5. **Conversational phrasing.** Occasionally use "honestly," "here's the thing," "if you're wondering," "the short answer is" — the way a real expert talks to a friend.
+6. **Kill the filler.** Remove hollow phrases: "we are committed to," "we strive to provide," "our mission is to deliver," "designed to enhance your experience." These scream AI. Just say what you do.
+7. **Asymmetric structure.** In card grids and feature lists, vary the description lengths. Not every card needs exactly 2 sentences. Some can be 1 sentence, others 3.
+8. **Natural keyword placement.** SEO keywords should feel like they belong in the sentence, not bolted on. Bad: "Looking for deep tissue massage in Atlanta? Our deep tissue massage Atlanta service..." Good: "If your shoulders have been locked up all week, a deep tissue session at our Buckhead studio might be exactly what you need."
+
+**Quick self-check before finalizing content:** Read it out loud. If it sounds like a brochure or a ChatGPT response, rewrite it.
 - **NEVER use contact forms / input fields on the Contact page.** Use `mailto:` links instead. A simple "Email Us" button with a `mailto:` href is sufficient. No form state, no form submission logic, no text inputs.
 - **SEO tags are handled by prerender, NOT by page components.** Pages should NOT call applySeoMeta(), useEffect for document.title, or any runtime SEO function. SEO data lives in seo-config.ts and is injected by the prerender script at build time.
 
@@ -976,3 +993,37 @@ For detailed examples and templates, see:
 - `references/seo-config-template.mjs` — SEO config template
 - `references/schema-examples.json` — Schema markup templates
 - `references/seo-guide-template.md` — SEO guide page S1-S10 specification (Phase 4)
+
+---
+
+## Canonical Domain Strategy
+
+When setting up canonical URLs for a new project:
+
+- **Prefer `www.` subdomain** (e.g., `www.example.com`) as the canonical origin:
+  - `www` can use CNAME records for CDN/hosting (bare domains cannot)
+  - Better cookie isolation if subdomains are added later
+  - Better CDN compatibility across providers
+- **Set bare domain → 301 redirect → www** at DNS/hosting level
+- Use the canonical domain consistently in: `<link rel="canonical">`, JSON-LD `@id`/`url`, OG tags, sitemap.xml, robots.txt
+- Store domain as a single constant (`DOMAIN`) in both `seo-config.ts` and `prerender.mjs`
+
+## Booking Integration Pattern
+
+For local businesses using third-party booking (MassageBook, Acuity, Calendly, etc.):
+
+- Create a **BookingModal** component + **BookingContext** provider
+- Desktop (≥768px): Show iframe in a modal overlay (max-w-3xl, h-[95vh], overflow-hidden)
+- Mobile (<768px): `window.open()` to booking URL in new tab — iframe scrolling is unreliable on mobile
+- All "Book" / "Book Now" buttons call `openBooking()` from context — never hardcode phone links for booking
+- Lazy-load: iframe only renders when modal opens → zero PageSpeed impact
+
+## Long-Tail SEO Page Pattern
+
+For service-specific and location-specific landing pages:
+
+- Define reusable section helpers (Eyebrow, SectionHeading, Card, HorizontalCard) inline in each page — keeps pages self-contained for code splitting
+- Follow a consistent section structure: Hero → Educational Content → Who Benefits → Service Details → Pricing → Comparison → What to Expect → CTA
+- Include real local details (employers, landmarks, neighborhoods, highways) — avoids generic AI-sounding content
+- Link pages from an SEO directory/dashboard on the main guide page with Active/Planned status badges
+- Each page gets unique JSON-LD (Service or Article schema + Breadcrumb + optionally LocalBusiness)

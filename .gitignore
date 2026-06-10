@@ -3,3 +3,11 @@ __pycache__/
 .idea/
 .vscode/
 
+# Local-only skill — contains hardcoded API key fallback, never commit
+skills/nano/
+
+# Third-party repos cloned for evaluation — not ours to commit
+_seo-evaluation/claude-seo/
+_seo-evaluation/marketingskills/
+_seo-evaluation/seo-geo-claude-skills/
+

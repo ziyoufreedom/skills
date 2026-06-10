@@ -1,0 +1,218 @@
+---
+/**
+ * /locations/[slug] — dynamic location page template for multi-location clients.
+ *
+ * Copy to src/pages/locations/[slug].astro. Generates one page per entry in
+ * src/lib/content/locations.ts via getStaticPaths.
+ *
+ * Emits per-location JSON-LD:
+ *  - LocalBusiness (type can be DaySpa / MassageTherapy / BeautySalon / etc.)
+ *  - BreadcrumbList
+ *  - FAQPage (when the location has a faq[] field)
+ *
+ * The LocalBusiness schema is the single most impactful piece of structured data
+ * for map-pack ranking. Ensure every field with real data is populated.
+ */
+import type { GetStaticPaths } from "astro";
+import SiteLayout from "@/layouts/SiteLayout.astro";
+import PageHero from "@/components/PageHero.astro";
+import FAQSection from "@/components/FAQSection.astro";
+import BookingCTA from "@/components/BookingCTA.astro";
+import { locations } from "@/lib/content/locations";
+import { services } from "@/lib/content/services";
+import { business } from "@/lib/content/business";
+import {
+  makeLocalBusiness,
+  makeBreadcrumb,
+  makeFAQPage,
+} from "@/lib/seo/schemas";
+
+export const getStaticPaths = (() => {
+  return Object.entries(locations).map(([slug, content]) => ({
+    params: { slug },
+    props: { content },
+  }));
+}) satisfies GetStaticPaths;
+
+const { content } = Astro.props;
+const slug = `/locations/${content.slug}`;
+
+const title = `${business.name} ${content.name} — ${content.address.city}, ${content.address.region}`;
+const description = `${business.type} in ${content.name} — ${content.address.street}. Open ${Object.keys(content.hours).length} days a week. Book online or call ${content.phone}.`;
+
+const jsonLd = [
+  makeLocalBusiness({
+    // "DaySpa" / "MassageTherapy" / "BeautySalon" / "MedicalBusiness" — pick the right schema.org subtype
+    type: business.schemaType,
+    id: `${business.domain}${slug}#localbusiness`,
+    name: content.displayName,
+    url: slug,
+    image: content.photos[0],
+    address: content.address,
+    phone: content.phone,
+    email: content.email,
+    geo: content.geo,
+    hours: content.hours,
+    priceRange: business.priceRange,
+    sameAs: business.sameAs,
+    areaServed: [content.name, ...content.neighborhoods],
+    aggregateRating: content.aggregateRating,
+    reviews: content.reviewsHighlights,
+  }),
+  makeBreadcrumb([
+    { name: "Home", url: "/" },
+    { name: "Locations", url: "/locations" },
+    { name: content.displayName, url: slug },
+  ]),
+  ...(content.faq && content.faq.length > 0 ? [makeFAQPage(content.faq)] : []),
+];
+
+// Resolve full service objects for the "Services at this location" section
+const offeredServices = content.servicesOffered
+  .map((s) => services[s])
+  .filter((s): s is NonNullable<typeof s> => s != null);
+---
+<SiteLayout
+  title={title}
+  description={description.slice(0, 160)}
+  ogImage={content.photos[0]}
+  jsonLd={jsonLd}
+  ogType="article"
+  article={{
+    publishedTime: "2026-04-01",
+    modifiedTime: "2026-04-01",
+    section: "Locations",
+  }}
+>
+  <nav aria-label="Breadcrumb" class="border-b border-rule">
+    <div class="container mx-auto px-4 py-3 text-sm text-ink-muted">
+      <a href="/" class="hover:text-ink">Home</a>
+      <span class="mx-2">/</span>
+      <a href="/locations" class="hover:text-ink">Locations</a>
+      <span class="mx-2">/</span>
+      <span class="text-ink">{content.displayName}</span>
+    </div>
+  </nav>
+
+  <PageHero
+    kicker={`${content.address.city}, ${content.address.region}`}
+    title={content.displayName}
+    subtitle={`${content.address.street} · ${content.phone}`}
+    image={content.photos[0]}
+  />
+
+  {/* NAP + hours block — critical for local SEO */}
+  <section class="container mx-auto px-4 py-16 grid gap-10 lg:grid-cols-[1.2fr_1fr]">
+    <div>
+      <h2 class="font-heading text-3xl">Visit us in {content.name}</h2>
+      <div class="mt-6 space-y-4 text-ink-soft">
+        <p>
+          <strong class="text-ink">Address:</strong><br />
+          {content.address.street}<br />
+          {content.address.city}, {content.address.region} {content.address.postalCode}
+        </p>
+        <p>
+          <strong class="text-ink">Phone:</strong>{" "}
+          <a href={`tel:${content.phone}`} class="underline decoration-rule underline-offset-4 hover:text-accent-ink">
+            {content.phone}
+          </a>
+        </p>
+        {content.email && (
+          <p>
+            <strong class="text-ink">Email:</strong>{" "}
+            <a href={`mailto:${content.email}`} class="underline decoration-rule underline-offset-4 hover:text-accent-ink">
+              {content.email}
+            </a>
+          </p>
+        )}
+      </div>
+
+      <h3 class="mt-10 font-heading text-2xl">Hours</h3>
+      <dl class="mt-4 grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-ink-soft">
+        {Object.entries(content.hours).map(([day, hours]) => (
+          <>
+            <dt class="font-medium text-ink">{day}</dt>
+            <dd>{hours}</dd>
+          </>
+        ))}
+      </dl>
+    </div>
+
+    <div>
+      <h3 class="font-heading text-2xl">Getting here</h3>
+      <ul class="mt-4 space-y-2 text-ink-soft">
+        {content.driveTimeFrom.map((d) => (
+          <li>
+            <strong class="text-ink">From {d.city}:</strong> {d.minutes} min · {d.miles} mi
+          </li>
+        ))}
+      </ul>
+
+      <h3 class="mt-10 font-heading text-2xl">Neighborhoods we serve</h3>
+      <p class="mt-3 text-ink-soft">{content.neighborhoods.join(" · ")}</p>
+    </div>
+  </section>
+
+  {/* Google Maps embed */}
+  {content.googleMapEmbed && (
+    <section class="border-y border-rule">
+      <div class="aspect-[16/7] w-full">
+        <iframe
+          src={content.googleMapEmbed}
+          loading="lazy"
+          referrerpolicy="no-referrer-when-downgrade"
+          class="h-full w-full border-0"
+          title={`Map of ${content.displayName}`}
+        />
+      </div>
+    </section>
+  )}
+
+  {/* Services at this location */}
+  {offeredServices.length > 0 && (
+    <section class="bg-paper-soft py-16">
+      <div class="container mx-auto px-4">
+        <h2 class="font-heading text-3xl">Services at {content.name}</h2>
+        <div class="mt-8 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {offeredServices.map((s) => (
+            <a href={`/services/${s.slug}`} class="group block border border-rule p-6 transition hover:border-primary">
+              <h3 class="font-heading text-xl group-hover:text-primary-ink">{s.name}</h3>
+              <p class="mt-2 text-sm text-ink-soft">{s.deck.slice(0, 120)}…</p>
+              <span class="mt-4 inline-block text-xs uppercase tracking-wider text-accent-ink">
+                Read more →
+              </span>
+            </a>
+          ))}
+        </div>
+      </div>
+    </section>
+  )}
+
+  {/* Reviews highlights */}
+  {content.reviewsHighlights && content.reviewsHighlights.length > 0 && (
+    <section class="container mx-auto px-4 py-16">
+      <h2 class="font-heading text-3xl">What neighbors say</h2>
+      <div class="mt-8 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {content.reviewsHighlights.map((r) => (
+          <blockquote class="border-l-2 border-accent pl-4">
+            <p class="text-ink-soft italic">&ldquo;{r.text}&rdquo;</p>
+            <footer class="mt-3 text-sm text-ink-muted">
+              — {r.author} · {"★".repeat(r.rating)}
+            </footer>
+          </blockquote>
+        ))}
+      </div>
+    </section>
+  )}
+
+  {/* FAQ */}
+  {content.faq && content.faq.length > 0 && (
+    <FAQSection faqs={content.faq} />
+  )}
+
+  <BookingCTA
+    heading={`Book at ${content.displayName}`}
+    phone={content.phone}
+    bookingUrl={business.booking_link}
+  />
+</SiteLayout>

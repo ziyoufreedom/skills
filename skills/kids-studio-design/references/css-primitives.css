@@ -1,0 +1,338 @@
+@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;600;700&family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,300..900,0..100,0..1;1,9..144,300..900,0..100,0..1&family=Inter+Tight:ital,wght@0,300..700;1,400&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Warm cream paper */
+    --background: 38 55% 95%;
+    --foreground: 20 22% 13%;
+
+    --card: 38 50% 97%;
+    --card-foreground: 20 22% 13%;
+
+    --popover: 38 50% 98%;
+    --popover-foreground: 20 22% 13%;
+
+    /* Tomato red — primary brand */
+    --primary: 8 72% 52%;
+    --primary-foreground: 38 60% 96%;
+
+    /* Ocean blue — secondary */
+    --secondary: 204 65% 53%;
+    --secondary-foreground: 38 60% 96%;
+
+    /* Honey yellow — accent */
+    --accent: 45 92% 55%;
+    --accent-foreground: 20 22% 13%;
+
+    /* Mint — tertiary */
+    --mint: 158 42% 55%;
+
+    /* Ink — warm deep charcoal */
+    --ink: 20 22% 13%;
+
+    --muted: 35 25% 88%;
+    --muted-foreground: 20 10% 40%;
+
+    --destructive: 0 72% 52%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 20 15% 86%;
+    --input: 20 15% 86%;
+    --ring: 8 72% 52%;
+
+    --radius: 0.75rem;
+
+    --sidebar-background: 38 50% 98%;
+    --sidebar-foreground: 20 22% 13%;
+    --sidebar-primary: 8 72% 52%;
+    --sidebar-primary-foreground: 38 60% 96%;
+    --sidebar-accent: 35 30% 92%;
+    --sidebar-accent-foreground: 20 22% 13%;
+    --sidebar-border: 20 15% 86%;
+    --sidebar-ring: 8 72% 52%;
+
+    --font-display: 'Fraunces', 'DM Serif Display', serif;
+    --font-body: 'Inter Tight', 'DM Sans', sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+    --font-hand: 'Caveat', cursive;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-body);
+    font-feature-settings: "ss01", "ss02", "cv11";
+    font-optical-sizing: auto;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    background-image:
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.25   0 0 0 0 0.18   0 0 0 0 0.1   0 0 0 0.06 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+    background-attachment: fixed;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display);
+    font-variation-settings: "SOFT" 30, "WONK" 0, "opsz" 144;
+    letter-spacing: -0.015em;
+  }
+
+  ::selection {
+    background: hsl(var(--primary) / 0.25);
+  }
+}
+
+@layer utilities {
+  .font-display { font-family: var(--font-display); }
+  .font-body    { font-family: var(--font-body); }
+  .font-mono    { font-family: var(--font-mono); }
+  .font-hand    { font-family: var(--font-hand); }
+
+  /* Hand-lettered annotation — the "marker on the wall" voice */
+  .handwritten {
+    font-family: var(--font-hand);
+    font-weight: 600;
+    letter-spacing: -0.005em;
+    line-height: 1.05;
+  }
+
+  /* Polaroid frame — white mat, soft shadow, slightly rotated */
+  .polaroid {
+    position: relative;
+    background: hsl(var(--card));
+    padding: 0.75rem 0.75rem 2.25rem;
+    box-shadow:
+      0 1px 1px hsl(20 22% 13% / 0.05),
+      0 8px 20px -8px hsl(20 22% 13% / 0.25),
+      0 28px 40px -24px hsl(20 22% 13% / 0.28);
+    border-radius: 2px;
+  }
+  .polaroid > img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .polaroid-caption {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0.4rem;
+    text-align: center;
+    font-family: var(--font-hand);
+    font-weight: 600;
+    font-size: 1.15rem;
+    color: hsl(var(--foreground) / 0.7);
+    pointer-events: none;
+  }
+
+  /* Washi-tape strip — peel off the edge of a photo */
+  .tape {
+    position: absolute;
+    width: 5.5rem;
+    height: 1.5rem;
+    background: hsl(45 92% 72% / 0.88);
+    box-shadow: 0 2px 6px -2px hsl(20 22% 13% / 0.25);
+    pointer-events: none;
+    backdrop-filter: blur(1px);
+  }
+  .tape::before, .tape::after {
+    content: "";
+    position: absolute;
+    top: 0; bottom: 0;
+    width: 0.5rem;
+    background-image: linear-gradient(
+      45deg,
+      transparent 25%,
+      hsl(0 0% 100% / 0.4) 25%,
+      hsl(0 0% 100% / 0.4) 50%,
+      transparent 50%,
+      transparent 75%,
+      hsl(0 0% 100% / 0.4) 75%
+    );
+    background-size: 4px 4px;
+    opacity: 0.4;
+  }
+  .tape::before { left: 0; }
+  .tape::after  { right: 0; }
+  .tape-red    { background: hsl(8 72% 68% / 0.85); }
+  .tape-blue   { background: hsl(204 65% 68% / 0.85); }
+  .tape-mint   { background: hsl(158 42% 65% / 0.85); }
+  .tape-yellow { background: hsl(45 92% 72% / 0.9); }
+
+  /* Sticker — hard-edged punch-out with offset shadow */
+  .sticker {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem 1rem;
+    border-radius: 9999px;
+    font-family: var(--font-hand);
+    font-weight: 700;
+    line-height: 1;
+    box-shadow:
+      0 0 0 3px hsl(var(--background)),
+      3px 4px 0 3px hsl(var(--foreground));
+    transform: rotate(-4deg);
+  }
+  .sticker-sm { padding: 0.4rem 0.8rem; font-size: 1rem; }
+  .sticker-lg { padding: 0.85rem 1.4rem; font-size: 1.6rem; }
+
+  /* Organic blob image masks — irregular "hand-cut paper" silhouettes */
+  .blob-1 { border-radius: 62% 38% 55% 45% / 58% 52% 48% 42%; }
+  .blob-2 { border-radius: 42% 58% 38% 62% / 48% 45% 55% 52%; }
+  .blob-3 { border-radius: 70% 30% 52% 48% / 45% 52% 48% 55%; }
+  .blob-4 { border-radius: 48% 52% 70% 30% / 55% 48% 52% 45%; }
+
+  /* Color panels — full-bleed hue cards for section backgrounds */
+  .panel-primary   { background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); }
+  .panel-secondary { background: hsl(var(--secondary)); color: hsl(var(--secondary-foreground)); }
+  .panel-accent    { background: hsl(var(--accent)); color: hsl(var(--accent-foreground)); }
+  .panel-mint      { background: hsl(var(--mint)); color: hsl(var(--foreground)); }
+  .panel-ink       { background: hsl(var(--ink)); color: hsl(var(--background)); }
+
+  /* Crayon / marker underline — thicker, hand-drawn */
+  .crayon-underline {
+    background-image: linear-gradient(
+      transparent 70%,
+      hsl(var(--accent) / 0.55) 70%,
+      hsl(var(--accent) / 0.55) 92%,
+      transparent 92%
+    );
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
+    padding: 0 0.1em;
+  }
+  .crayon-underline-red  { background-image: linear-gradient(transparent 70%, hsl(var(--primary) / 0.5) 70%, hsl(var(--primary) / 0.5) 92%, transparent 92%); }
+  .crayon-underline-blue { background-image: linear-gradient(transparent 70%, hsl(var(--secondary) / 0.5) 70%, hsl(var(--secondary) / 0.5) 92%, transparent 92%); }
+  .crayon-underline-mint { background-image: linear-gradient(transparent 70%, hsl(var(--mint) / 0.5) 70%, hsl(var(--mint) / 0.5) 92%, transparent 92%); }
+
+  /* Checker & stripe backgrounds — playful pattern fills */
+  .bg-dots {
+    background-image: radial-gradient(hsl(var(--foreground) / 0.15) 1.5px, transparent 1.5px);
+    background-size: 18px 18px;
+  }
+  .bg-stripes-diagonal {
+    background-image: repeating-linear-gradient(
+      45deg,
+      hsl(var(--accent) / 0.25),
+      hsl(var(--accent) / 0.25) 8px,
+      transparent 8px,
+      transparent 16px
+    );
+  }
+
+  /* Playful animations */
+  @keyframes wobble {
+    0%, 100% { transform: rotate(-2deg); }
+    50%      { transform: rotate(2deg); }
+  }
+  @keyframes float-y {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-10px); }
+  }
+  @keyframes bounce-soft {
+    0%, 100% { transform: translateY(0) scale(1); }
+    50%      { transform: translateY(-6px) scale(1.02); }
+  }
+  @keyframes drift-x {
+    0%, 100% { transform: translateX(0) rotate(-6deg); }
+    50%      { transform: translateX(8px) rotate(-4deg); }
+  }
+  .wobble     { animation: wobble 5s ease-in-out infinite; transform-origin: center; }
+  .float-y    { animation: float-y 4s ease-in-out infinite; }
+  .bounce-soft{ animation: bounce-soft 3s ease-in-out infinite; }
+  .drift-x    { animation: drift-x 7s ease-in-out infinite; }
+
+  /* Editorial label: mono caps with wide tracking */
+  .label {
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    font-size: 0.72rem;
+    font-weight: 500;
+  }
+
+  /* Huge numeric marker e.g. "01" */
+  .numeral {
+    font-family: var(--font-display);
+    font-variation-settings: "opsz" 144, "wght" 300, "SOFT" 100, "WONK" 1;
+    font-style: italic;
+    font-weight: 300;
+    letter-spacing: -0.04em;
+    line-height: 0.85;
+  }
+
+  /* Characterful italic for brand/callout words */
+  .italic-wonk {
+    font-style: italic;
+    font-variation-settings: "SOFT" 100, "WONK" 1, "opsz" 144;
+  }
+
+  /* Paper-grain overlay — SVG noise */
+  .paper-grain::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.5;
+    mix-blend-mode: multiply;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.35   0 0 0 0 0.25   0 0 0 0 0.15   0 0 0 0.12 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  }
+
+  /* Small decorative dot — echoes logo */
+  .brand-dot {
+    display: inline-block;
+    width: 0.5em;
+    height: 0.5em;
+    border-radius: 9999px;
+    vertical-align: middle;
+    margin-inline: 0.25em;
+  }
+
+  /* Marquee for mini-stats etc. */
+  .ticker-pause:hover { animation-play-state: paused; }
+
+  /* Hand-drawn swoosh underline (svg inline) */
+  .underline-swoosh {
+    position: relative;
+    white-space: nowrap;
+  }
+  .underline-swoosh::after {
+    content: "";
+    position: absolute;
+    left: -2%;
+    right: -2%;
+    bottom: -0.12em;
+    height: 0.45em;
+    background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 20' preserveAspectRatio='none'><path d='M2 14 Q 50 2 100 8 T 198 6' fill='none' stroke='%23DB3C1A' stroke-width='3' stroke-linecap='round'/></svg>") no-repeat center/100% 100%;
+    z-index: -1;
+    pointer-events: none;
+  }
+
+  /* Slow rotate for decorative dots */
+  @keyframes rotate-slow { to { transform: rotate(360deg); } }
+  .rotate-slow { animation: rotate-slow 30s linear infinite; }
+
+  /* Marquee */
+  @keyframes marquee {
+    from { transform: translateX(0); }
+    to   { transform: translateX(-50%); }
+  }
+  .animate-marquee {
+    animation: marquee 40s linear infinite;
+  }
+}
