@@ -1125,11 +1125,49 @@ Astro 版默认比 React SPA 好 15–25 点 PageSpeed 分,因为零 JS + HTML �
 
 ---
 
+## 实战铁律(Agoura Hills Spa 案例沉淀,2026-07)⭐
+
+完整 playbook 见 `references/agoura-playbook.md`(13/13 页 A+、SEO 98.9 / GEO 80.0 的完整打磨记录)。以下是**每个新项目都要执行**的浓缩版:
+
+### 视觉工艺 — Atelier 相框系统
+
+照片"贴上去"感是廉价站的头号特征。解法:全站照片统一走 `references/atelier-framing.css` 的装裱系统(直接粘进 global.css,tailwind 指令之后):
+
+- **`.plate` 拱形相框**(竖图):古典拱窗 + 错位金线双框 + 内圈细线 + 暖调渐变 + SVG 纸纹颗粒 + 22s Ken Burns 慢呼吸 + 微倾 ±1° + 蜡封价格徽章(菜单页)+ 雕版小字 caption
+- **`.print` 矩形印版框**(横图/宽幅):同族直角版,用于 storefront、guide 宽幅 hero
+- 价目页配 **`.menu-card` 雕版菜单卡**:四角对版记号 + 幽灵衬线卷号 + 金色点状引导线(hover 点亮)+ 上标 $ 衬线价签 + 小字距时长胶囊
+- 应用位置:PageHero(内页全部)、GuideLayout hero、首页 why 区块、价目页——**一套语言贯穿全站**,这是别站抄不走的辨识度
+
+### Hero / 导航 / CTA 铁律
+
+1. **照片含招牌大字 → 分栏 hero,永不叠字**:文字放暖纸色面板(亮,不阴森),照片独占一栏,长渐变(to-58%)融合接缝;移动端照片 36vh + 全部内容压进首屏
+2. **Logo 按原始纵横比渲染**(`w-auto` + 真实 width/height),横版字标严禁塞正方形框
+3. **导航加按钮必跑宽度扫描**:390→1920 九档 `scrollWidth > clientWidth` 全 false;中屏用短标签(Gifts/Book),文字字标 xl+ 才显示
+4. **预约平台深链取代 iframe modal**:Fresha 用 `/booking`、`/gift-cards` 深链直出,`target="_blank" rel="noopener"`;CTA 三件套 Book Online(gold)+ Gift Cards(ghost)+ Call(ghost 带图标),同一 `.btn` 规格;URL 只存 locations.ts 一处
+5. Fresha 菜单侦察:curl venue 页(SSR)抓 JSON-LD OfferCatalog = 含价完整菜单
+
+### 数据诚信(是卖点不是束缚)
+
+- 无验证评分 → 零星标零 aggregateRating;菜单一字不改镜像预约平台(可疑数据报告老板,不擅自修);缺失政策写"来电确认"
+- 唯一合规 E-E-A-T 句式:"Many California cities require massage professionals to be CAMTC-certified — you're welcome to ask about your therapist's credentials when you book"(行业事实,非店家宣称;各州换机构)
+- 健康声明 hedge + 具名 NCCIH/Mayo/AMTA + 页尾 Sources + not-medical-advice
+
+### 审计与 QA 循环
+
+- 用 **jj-seo-geo skill** 的本地打分器做 fix→build→rescore 循环;高频扣分修法速查表在 playbook §6(meta 110-170c 含词+CTA 动词、H1 决定推断关键词、直答句要空格分隔的数字、证据页 Article schema、conversion 页 floor×1.5 词数)
+- **视觉 QA**:`references/visual-qa-screenshots.mjs` 全页截图(品牌断言防端口陷阱、强制 reveal、懒加载滚动、地图固定 settle、sticky 头 static 化、>16k px 页底另拍)→ vision agent 逐张审桌面+移动 → 修 → 复截终审
+- 换牌项目硬门槛:`grep -riE "旧品牌|旧城市|旧电话" dist/` = 0;`_redirects` 逐条 301 旧 WP URL;`llms.txt` 带 NAP+价格+深链
+
+---
+
 ## 引用文件
 
 - `references/Layout-astro-template.astro` — `SiteLayout.astro` + `BaseHead.astro` 的 `<head>` 注入模板(含 JSON-LD `@graph`)
 - `references/location-page-template.astro` — `/locations/[slug]` 动态路由完整模板,含 `LocalBusiness` schema + FAQ
 - `references/seo-schema-helpers.ts` — 所有 schema helper 函数(`makeOrganization / makeLocalBusiness / makeService / makeArticle / makeFAQPage / makeBreadcrumb`),可直接放 `src/lib/seo/schemas.ts`
+- `references/atelier-framing.css` — ⭐ 全站照片装裱系统(拱形 plate / 矩形 print / 雕版 menu-card),含 markup 配方,直接粘进 global.css
+- `references/visual-qa-screenshots.mjs` — ⭐ 视觉 QA 截图 harness(系统 Chrome、品牌断言、懒加载/地图/sticky/超高页全部陷阱已编码),含导航溢出扫描片段
+- `references/agoura-playbook.md` — ⭐ Agoura Hills Spa 完整实战 playbook:分栏 hero 定式、导航宽度预算、Fresha 深链、数据诚信、单店长尾架构(根级 slug + /guides 枢纽 + 36 行路线图)、审计扣分速查、图片流水线(=s2400 技巧)、WP 迁移件
 
 ---
 

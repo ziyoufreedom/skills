@@ -1,0 +1,261 @@
+/* ============================================================
+   Atelier framing system — premium photo treatment for local-biz
+   sites. Proven on The Agoura Hills Spa (agourahillsspa.com).
+   Drop into global.css (AFTER the tailwind directives so these
+   rules win over utility classes at equal specificity).
+
+   Two variants sharing one engine:
+     .plate-*  = arched "menu plate"  (portrait shots; classical spa arch)
+     .print-*  = rectangular "framed print" (landscape / wide shots)
+
+   Both use: .plate-img (slow Ken Burns breathe) · .plate-grade
+   (warm cinema grade) · .plate-grain (printed-paper noise) ·
+   .plate-caption (engraved small-caps caption).
+
+   Markup recipe (arch; aspect comes from a Tailwind utility):
+
+     <figure class="plate md:rotate-1">
+       <div class="plate-shadow-frame" aria-hidden="true"></div>
+       <div class="plate-window aspect-[4/5]">
+         <img class="plate-img" src="..." alt="..." />
+         <div class="plate-grade"  aria-hidden="true"></div>
+         <div class="plate-grain"  aria-hidden="true"></div>
+         <div class="plate-inner-line" aria-hidden="true"></div>
+       </div>
+       <div class="plate-seal" aria-hidden="true">          <!-- optional -->
+         <span class="plate-seal-kicker">from</span>
+         <span class="plate-seal-price">$50</span>
+       </div>
+       <figcaption class="plate-caption">
+         <span class="plate-caption-rule" aria-hidden="true"></span>
+         <span>The treatment room</span>
+         <span class="plate-caption-rule" aria-hidden="true"></span>
+       </figcaption>
+     </figure>
+
+   For .print swap: plate-shadow-frame→print-shadow-frame,
+   plate-window→print-window, plate-inner-line→print-inner-line.
+   Long captions (guide heroes): add .plate-caption--wrap.
+   Tokens assumed: --ink/--paper/--gold/--gold-deep/--rule (HSL triplets).
+   Serif assumed: Cormorant Garamond (swap for the client display serif).
+   ============================================================ */
+
+.plate,
+.print {
+  position: relative;
+}
+
+/* Offset engraving line behind the frame — the "double frame" */
+.plate-shadow-frame,
+.print-shadow-frame {
+  position: absolute;
+  inset: 0;
+  border: 1px solid hsl(var(--gold) / 0.45);
+  pointer-events: none;
+}
+.plate-shadow-frame {
+  transform: translate(14px, 14px);
+  border-radius: 999px 999px 6px 6px;
+}
+.print-shadow-frame {
+  transform: translate(12px, 12px);
+  border-radius: 6px;
+}
+
+.plate-window,
+.print-window {
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 24px 48px -24px hsl(var(--ink) / 0.35);
+}
+.plate-window { border-radius: 999px 999px 6px 6px; }  /* classical arch */
+.print-window { border-radius: 6px; }
+
+.plate-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: saturate(1.08) contrast(1.04) brightness(1.02);
+  animation: plate-breathe 22s ease-in-out infinite alternate;
+}
+
+@keyframes plate-breathe {
+  from { transform: scale(1.02); }
+  to   { transform: scale(1.09); }
+}
+
+/* warm cinema grade — deep at the base, clear at the top */
+.plate-grade {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(to top, hsl(var(--ink) / 0.28), transparent 45%),
+    radial-gradient(120% 90% at 50% 0%, hsl(var(--gold) / 0.12), transparent 55%);
+  pointer-events: none;
+}
+
+/* printed-paper grain — sells the "plate", kills the "pasted jpg" look */
+.plate-grain {
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+  opacity: 0.07;
+  mix-blend-mode: multiply;
+  pointer-events: none;
+}
+
+.plate-inner-line,
+.print-inner-line {
+  position: absolute;
+  inset: 10px;
+  border: 1px solid hsl(var(--paper) / 0.65);
+  pointer-events: none;
+}
+.plate-inner-line { border-radius: 999px 999px 4px 4px; }
+.print-inner-line { border-radius: 3px; }
+
+/* ---------- Wax-seal price medallion (menu plates) ---------- */
+.plate-seal {
+  position: absolute;
+  right: -6px;
+  bottom: 42px;
+  width: 92px;
+  height: 92px;
+  border-radius: 9999px;
+  background: hsl(var(--paper));
+  border: 1px solid hsl(var(--gold) / 0.6);
+  outline: 1px solid hsl(var(--gold) / 0.35);
+  outline-offset: 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  box-shadow: 0 10px 24px -12px hsl(var(--ink) / 0.35);
+  transform: rotate(6deg);
+}
+
+.plate-seal-kicker {
+  font-size: 10px;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: hsl(var(--ink) / 0.55);
+  margin-left: 0.28em; /* optically recenter tracked caps */
+}
+
+.plate-seal-price {
+  font-family: "Cormorant Garamond", serif;
+  font-style: italic;
+  font-size: 30px;
+  line-height: 1;
+  color: hsl(var(--gold-deep));
+}
+
+/* ---------- Engraved caption ---------- */
+.plate-caption {
+  margin-top: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  font-size: 11px;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: hsl(var(--ink) / 0.55);
+  white-space: nowrap;
+}
+
+.plate-caption-rule {
+  height: 1px;
+  width: 34px;
+  background: linear-gradient(to right, transparent, hsl(var(--gold) / 0.6), transparent);
+}
+
+/* wide captions (guide heroes) may wrap on small screens */
+.plate-caption--wrap {
+  white-space: normal;
+  text-align: center;
+  line-height: 1.7;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .plate-img { animation: none !important; transform: none !important; }
+}
+
+/* ============================================================
+   Engraved menu card — pairs with the plates on the price page.
+   Markup: <div class="menu-card relative rounded-sm border shadow p-7">
+             <span class="menu-tick tick-tl"/> ×4 corners
+             <span class="menu-ghost-no">01</span>
+             kicker "MENU — No. 01" · h2 in display serif ·
+             italic serif standfirst · rows:
+               name · <span class="menu-leader"/> ·
+               <span class="price-tag"><sup>$</sup>100</span>
+               <span class="menu-duration">60 min</span>
+   ============================================================ */
+
+.menu-card {
+  background:
+    radial-gradient(140% 100% at 100% 0%, hsl(var(--gold) / 0.06), transparent 50%),
+    linear-gradient(160deg, hsl(var(--paper)), hsl(var(--paper-soft)));
+  overflow: hidden;
+}
+
+/* corner ticks — tiny gold register marks, like a printed plate */
+.menu-tick {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-color: hsl(var(--gold) / 0.55);
+  border-style: solid;
+  border-width: 0;
+  pointer-events: none;
+}
+.tick-tl { top: 8px; left: 8px; border-top-width: 1px; border-left-width: 1px; }
+.tick-tr { top: 8px; right: 8px; border-top-width: 1px; border-right-width: 1px; }
+.tick-bl { bottom: 8px; left: 8px; border-bottom-width: 1px; border-left-width: 1px; }
+.tick-br { bottom: 8px; right: 8px; border-bottom-width: 1px; border-right-width: 1px; }
+
+/* ghost folio numeral */
+.menu-ghost-no {
+  position: absolute;
+  top: -18px;
+  right: 6px;
+  font-family: "Cormorant Garamond", serif;
+  font-style: italic;
+  font-size: 148px;
+  line-height: 1;
+  color: transparent;
+  -webkit-text-stroke: 1px hsl(var(--gold) / 0.28);
+  user-select: none;
+  pointer-events: none;
+}
+
+/* dotted gold leader that brightens with the row */
+.menu-leader {
+  border-bottom: 1px dotted hsl(var(--gold) / 0.4);
+  transition: border-color 0.3s ease;
+}
+.menu-row:hover .menu-leader { border-color: hsl(var(--gold) / 0.85); }
+.menu-row:hover { background: hsl(var(--gold) / 0.05); }
+.menu-row { margin-inline: -12px; padding-inline: 12px; border-radius: 4px; }
+
+.menu-duration {
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: hsl(var(--ink) / 0.6);
+  border: 1px solid hsl(var(--rule));
+  border-radius: 9999px;
+  padding: 3px 9px 2px;
+  white-space: nowrap;
+}
+
+.price-tag sup {
+  font-size: 0.52em;
+  top: -0.55em;
+  margin-right: 1px;
+  font-style: normal;
+}
