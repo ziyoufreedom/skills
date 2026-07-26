@@ -1155,6 +1155,7 @@ Astro 版默认比 React SPA 好 15–25 点 PageSpeed 分,因为零 JS + HTML �
 ### 审计与 QA 循环
 
 - 用 **jj-seo-geo skill** 的本地打分器做 fix→build→rescore 循环;高频扣分修法速查表在 playbook §6(meta 110-170c 含词+CTA 动词、H1 决定推断关键词、直答句要空格分隔的数字、证据页 Article schema、conversion 页 floor×1.5 词数)
+- **Title 权重词公式**(playbook §6.5):每页 title 铺 Best / Top Rated / Luxury / Best Experience,`[权重词]+[主关键词]+[品牌词] ≤60c`;权重词按页面人设错开轮换(信任页 Top Rated、高端服务 Luxury、证据页 "Best Honest Guide"),不要全站盖同一个词;永远不配评分 schema;core 页在 pages.ts、长尾页 in-page,grep 两处都要改
 - **视觉 QA**:`references/visual-qa-screenshots.mjs` 全页截图(品牌断言防端口陷阱、强制 reveal、懒加载滚动、地图固定 settle、sticky 头 static 化、>16k px 页底另拍)→ vision agent 逐张审桌面+移动 → 修 → 复截终审
 - 换牌项目硬门槛:`grep -riE "旧品牌|旧城市|旧电话" dist/` = 0;`_redirects` 逐条 301 旧 WP URL;`llms.txt` 带 NAP+价格+深链
 

@@ -93,6 +93,34 @@ giftCardUrl: https://www.fresha.com/a/<venue-slug>/gift-cards
 
 Conversion 页提词的合法招:At-a-glance 数字段(14 treatments · from $50 · 7 days · 8 cities ≈ 事实密度)、Getting-here 路线细节、before-your-visit 建议。
 
+## 6.5 Title 权重词公式(Best / Top Rated / Luxury)
+
+客户会明确要求 title 里出现 "best"、"top rated" 这类用户爱搜的词。全站铺权重词时的公式与红线(实测 13 页改完分数零回归、Title 维度保持 15/15 满分):
+
+**公式:`[权重词] + [主关键词] + [品牌/城市词] ≤ 60 字符`**
+
+四个硬约束,每条改完都要验:
+
+1. **≤60 字符**(61–70 扣 1 分,>70 扣 3 分)——权重词挤掉的通常是 "| Book Online" 这类 title 内 CTA,可以牺牲(CTA 动词审计只查 meta description,不查 title)
+2. **品牌词保留**(审计正则查 title 里的 "agoura hills" 类品牌 token)
+3. **主关键词保留**——关键词是**从 H1 推断**的(清洗后 2/3-gram 滑窗),所以改 title 前先想清楚这页的推断词是什么,token 必须还在 title 里
+4. **全站唯一**——metadata 审计查重
+
+**权重词要错开轮换,不要 13 页全盖 "Best"**(读起来像垃圾站,词也互相稀释)。按页面人设分配:
+
+| 页面类型 | 用词 | 示例 |
+|---|---|---|
+| 首页 | Best … Experience | "Best Massage & Day Spa Experience in Agoura Hills, CA" |
+| 价目/服务枢纽 | Best | "Best Spa Menu & Massage Prices in Agoura Hills, CA" |
+| 信任页(about/contact/FAQ) | Top Rated | "Contact Us — Top Rated Spa on Kanan Road, Agoura Hills" |
+| 高端/科技服务 | Luxury | "Luxury Robotic Massage in Agoura Hills \| iRelaxbot" |
+| 证据/攻略长文 | Best Honest Guide | "Cupping Therapy Benefits — Best Honest Guide \| Agoura Hills"(既有权重词又不背叛诚实定位) |
+| 商业长尾 | Best + 规格 | "Best Couples Massage in Agoura Hills, CA \| 60 & 90 Min" |
+
+**红线:** 权重词只是 title 文案,**永远不配 aggregateRating/评分 schema**(无验证评分时打 "Top Rated" + 星标 schema = 违规二连)。
+
+**改哪里:** core 页 title 在 `src/lib/seo/pages.ts`,长尾页 title 是各页 in-page prop——grep 两处,漏一处就有页面没改到。改完:build → seo-geo-score(Title 15/15)→ metadata-audit(unique / 0 >60c)。
+
 ## 7. 视觉 QA 流水线
 
 见 `visual-qa-screenshots.mjs`(端口陷阱/品牌断言/懒加载滚动/地图 settle/sticky 头/16k px 拼接缺陷全部在内)。流程:全量截图 → 3 个视觉 reviewer agent 分批 Read 逐张审(桌面+移动) → 修 → 复截 → 终审 verifier 逐项 check。真实抓到的站点缺陷类型:移动端品牌名截断、InfoTable 右列被裁(修法:md 以下堆叠成 label/value 卡)、来源链接 break-all 词中断行(改 break-words)、PriceCard 时长重复("80 min · 80 min",label 已含时长就别传 duration prop)、StatBand 标签孤行(不换行空格/短语重写)。
