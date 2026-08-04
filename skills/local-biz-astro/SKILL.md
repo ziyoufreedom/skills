@@ -529,7 +529,14 @@ import { business } from "@/lib/content/business";
     /* Success / warning (keep stable across brands) */
     --success: 145 55% 35%;
 
-    --radius: 4px;
+    /* CTA 填充 —— 与「文字用的 accent」分开养。
+       ⚠️ 别用「深金底 + 白字」:白字过 AA 会把底色亮度顶到 ~34% L,
+       那个亮度的黄橙就是咖喱色。浅底 + 墨字才是出路(实测 10.1:1)。
+       完整推导见 references/hero-fullbleed-playbook.md §5.5 */
+    --accent-btn: 42 48% 74%;        /* sample: 浅香槟,配 --ink 文字 */
+
+    --radius: 4px;                   /* 卡片 / 图片框 */
+    --btn-radius: 999px;             /* 按钮单独一档 —— 药丸,与卡片解耦 */
   }
 
   /* Yang's Spa brand override — switch via body class or page-level :where() */
@@ -537,7 +544,7 @@ import { business } from "@/lib/content/business";
     --primary: 340 36% 50%;          /* warm pink */
     --primary-soft: 340 30% 94%;
     --primary-ink: 340 36% 35%;
-    --accent: 40 82% 50%;            /* gold */
+    --accent: 40 82% 50%;            /* gold —— 文字/描边用,不要直接当按钮底 */
   }
 }
 ```
@@ -1163,6 +1170,17 @@ Astro 版默认比 React SPA 好 15–25 点 PageSpeed 分,因为零 JS + HTML �
 10. **完整 NAP 必须在 `<body>` 正文** —— `seo-geo-score.mjs` 的 `stripChrome()` 剥掉 `<header>/<footer>/<nav>`,导航条里的地址不计分。首屏放**空格分隔**的数字(`60 minutes` 匹配、`60-minute` 不匹配)。eyebrow 不要重复 H1 已有的词,换品类词或 power word 多吃一个关键词。
 11. **量,不要猜 —— 但先验证你的尺子** —— hero 调版每轮跑 playwright 扫 320→1920:行数 / 字号 / `scrollWidth>clientWidth` / `img.currentSrc` 选源。时间相关 UI 截图前固定时钟。⚠️ 三个会让你基于错数字返工的陷阱:**`sharp` 的 `.stats()` 忽略前面的 `.extract()`**(返回整图平均,必须先 `.raw().toBuffer()`)、**元素盒子≠字形框**(满宽 flex 容器会把亮部算进平均,用 `Range.getBoundingClientRect()`)、**`element.screenshot()` 会滚动页面**导致 sticky 导航假性遮挡。通用信号:**两个不同位置的元素给出完全相同的对比度数字,一定是测量错了**。
 
+12. **⭐ 金色 CTA 土,八成是白字的锅** —— 「金底+白字」要过 AA 就把底色亮度顶死在 ~34% L,而黄橙色相在这个亮度上**物理上就是咖喱色**,降饱和只会变土褐、提亮会挂 AA、加渐变按最暗点算等于没提亮。解法是反转:**浅香槟底 `42 48% 74%` + 墨字 = 10.1:1**,顺带让按钮成为深色 hero 上最亮的元素。三个连带项:填充金与文字金**必须是两个 token**(`--gold-btn` / `--gold-deep`,后者要在 paper 和 soft 徽章底上都过 AA);浅底按钮的 sheen 要从白色改**墨色**否则动画不可见;按钮半径单独给 `--btn-radius: 999px`(卡片留 2px 硬边),药丸让按钮视觉轻一档且不牺牲 44px 触控区。手机 CTA **竖排左对齐 + `text-sm sm:text-base` + 按内容宽**,横排会挤到标签换行,满宽是 App 感不是精品店感。
+
+### 全站交互细节(U Beauty 沉淀,2026-08)
+
+- **⭐ 刷新必须回到页顶** —— 浏览器默认恢复上次滚动位置,客户会当成 bug 报。判定用 `PerformanceNavigationTiming` 的 `type === 'reload'`(**别用已废弃的 `performance.navigation`**),并且 `location.hash` 非空时直接放行,否则深链接会被打断。⚠️ **只设 `history.scrollRestoration='manual'` + 单次 `load` 里 `scrollTo(0,0)` 不可靠** —— 各浏览器恢复时机不同,实测 10 个页面/断点组合只过 3 个,且每次结果还不一样。要在**多个阶段各钉一次**(立即 / `DOMContentLoaded` / `load` / `load` 后一帧)。写进 SiteLayout 已有的 inline script,不要新增 `<script>` 标签。验收:playwright 滚到 1800 → `reload()` → 断言 `scrollY===0`,同时断言带 `#锚点` 的页面刷新后**仍停在锚点**。
+- **⭐ 锚点 id 必须和内容层 slug 同源** —— footer/侧栏这类自动生成的链接通常写 `/services#{services[*].slug}`,而服务页 section 常顺手写成 `id={category.key}` 这种短名。两边对不上时**不会报 404**,链接照常跳到 `/services` 顶部,所以构建、`astro check`、截图审全都发现不了 —— 我们实测漏了约 80 条。规则:**anchor 只有一个来源,就是内容模块的 `slug`**,页面侧用 `Object.values(services).find(sv => sv.icon === key)?.slug` 反查,别手写。验收脚本(扫 `dist/` 交叉验证)必跑:
+  ```js
+  const ids = new Set([...svc.matchAll(/id="([\w-]+)"/g)].map(m => m[1]));
+  // 收集全站 href="/services#xxx" → 断言每个 xxx 都在 ids 里
+  ```
+
 ### 数据诚信(是卖点不是束缚)
 
 - 无验证评分 → 零星标零 aggregateRating;菜单一字不改镜像预约平台(可疑数据报告老板,不擅自修);缺失政策写"来电确认"
@@ -1186,7 +1204,7 @@ Astro 版默认比 React SPA 好 15–25 点 PageSpeed 分,因为零 JS + HTML �
 - `references/atelier-framing.css` — ⭐ 全站照片装裱系统(拱形 plate / 矩形 print / 雕版 menu-card),含 markup 配方,直接粘进 global.css
 - `references/visual-qa-screenshots.mjs` — ⭐ 视觉 QA 截图 harness(系统 Chrome、品牌断言、懒加载/地图/sticky/超高页全部陷阱已编码),含导航溢出扫描片段
 - `references/agoura-playbook.md` — ⭐ Agoura Hills Spa 完整实战 playbook:分栏 hero 定式、导航宽度预算、Fresha 深链、数据诚信、单店长尾架构(根级 slug + /guides 枢纽 + 36 行路线图)、审计扣分速查、图片流水线(=s2400 技巧)、WP 迁移件
-- `references/hero-fullbleed-playbook.md` — ⭐ U Beauty & Foot Spa 满铺 hero playbook(与 agoura 的分栏 hero 互补,照片干净无招牌字时用):`object-cover` 窄屏高度受限陷阱 + `<picture>` 艺术指导、两行标题构造法与实测字号区间、`clamp(vw)` 手机字号、**手写渐变 + 上→中单调(黑条的真正成因)**、**照片调性决定遮罩颜色 + `heroTone` 可切三版**、flex+`mt-auto` 上下分区、Google 评分合规(禁 aggregateRating)、商家时区营业状态、一键导航、**playwright 量测循环与三个测量陷阱**、17 项验收 checklist
+- `references/hero-fullbleed-playbook.md` — ⭐ U Beauty & Foot Spa 满铺 hero playbook(与 agoura 的分栏 hero 互补,照片干净无招牌字时用):`object-cover` 窄屏高度受限陷阱 + `<picture>` 艺术指导、两行标题构造法与实测字号区间、`clamp(vw)` 手机字号、**手写渐变 + 上→中单调(黑条的真正成因)**、**照片调性决定遮罩颜色 + `heroTone` 可切三版**、flex+`mt-auto` 上下分区、Google 评分合规(禁 aggregateRating)、商家时区营业状态、一键导航、**playwright 量测循环与三个测量陷阱**、**金色 CTA 的咖喱色成因与香槟+墨字反转解法**、20 项验收 checklist
 - `references/make-hero-images.mjs` — 桌面+手机 hero 双裁切脚本模板(sharp `.extract().resize(lanczos3).sharpen()`),两个断点各自艺术指导,裁切算式写在注释里,换高清源只改 `src` 重跑
 
 ---
