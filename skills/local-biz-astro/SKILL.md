@@ -995,6 +995,7 @@ Phase 5 交付后:`npm run build && npm run audit:links` 一次过。
 - [ ] `npm run audit:links` 无破链
 - [ ] 所有 `<img>` 有 `alt` + `width` + `height`
 - [ ] 手机响应式跑过(375px / 414px / 768px)
+- [ ] **Hero 单独验收** —— 320→1920 无横向溢出、H1 每行都是 1 行、`min-h` 实测生效、`<picture>` 各断点选源正确、照片主体没被 CTA 压住、无 `aggregateRating`;营业状态 9 个模拟时钟用例(含冬夏令时)全过且无 JS 时仍正确。完整 17 项见 `references/hero-fullbleed-playbook.md` §8
 - [ ] PageSpeed mobile ≥ 90(Astro 默认就能打到)
 - [ ] SSL 激活
 - [ ] 字体自托管,0 个 `fonts.googleapis.com` 请求(DevTools Network 检查)
@@ -1146,6 +1147,22 @@ Astro 版默认比 React SPA 好 15–25 点 PageSpeed 分,因为零 JS + HTML �
 4. **预约平台深链取代 iframe modal**:Fresha 用 `/booking`、`/gift-cards` 深链直出,`target="_blank" rel="noopener"`;CTA 三件套 Book Online(gold)+ Gift Cards(ghost)+ Call(ghost 带图标),同一 `.btn` 规格;URL 只存 locations.ts 一处
 5. Fresha 菜单侦察:curl venue 页(SSR)抓 JSON-LD OfferCatalog = 含价完整菜单
 
+### 满铺 Hero 铁律(照片干净、无招牌字时用;完整版见 `references/hero-fullbleed-playbook.md`)⭐
+
+1. **⚠️ 窄屏下 `object-cover` 是高度受限的** —— 手机 hero 窄高 + 照片横构图 → 高度铺满、只裁宽度 → **`object-position` 的 Y 分量完全无效**。照片主体(脚/脸/手)纵向位置被源图钉死,落在 CTA 区就永远看不见。判据:容器比 < 图片比 → 只能调 X。
+2. **解法是 `<picture>` 换图,不是调 position** —— 手机给一张**构图不同的竖版裁切**(艺术指导,不是响应式尺寸)。裁切位置按 `T + p·H = C` 反推,脚本模板 `references/make-hero-images.mjs`。**方形素材(1024²)比横图好裁**,横图裁竖版常算出需要 4× 放大的框。放大 ≤1.5× 可接受。定位 class 放 `<img>`,`alt` 要对两张图都成立,`<head>` 里的 hero preload 必须删或带 `media`。
+3. **标题两行是构造出来的** —— 实测两行所需字号区间:1440px 是 50–68px、390px 是 30–34px,**两区间不重叠**,自动换行做不到两端都两行。用显式 `<span class="block">` 断行 + 每行独立字号;手机用 `clamp(vw)`(固定值在 320px 换行、在 414px 浪费一半宽度),`clamp` 上限对齐 `sm:` 档防跨断点缩字。两行比值 **1.5–1.6** 全断点一致。
+4. **细衬线展示体要比直觉再放大 1.3–1.5×** —— Cormorant 25px 看着比 Inter Bold 16px 还小,客户会说"标题怎么比按钮字还小"。
+5. **遮罩手写 `linear-gradient`,不用 Tailwind 任意停靠点** —— `from-[26%]`/`via-[48%]` 这类类名**不按语义插值**(实测把不透明度调高、对比度反而变差)。超过三个停靠点就写进 scoped `<style>`。先量各元素占 hero 高度百分比再排曲线;**只有纯文字需要压暗**,自带底色的按钮/卡片/药丸可落亮区,大标题只要 3:1 不是 4.5:1。
+5b. **⭐ 手机遮罩从顶端到中点必须单调** —— 「顶部露照片」(顶端≈0)和「标题区压暗」(15% 处≈0.85)**互斥**,亮→暗→亮必然夹出一条悬浮黑条。把暗色**锚在最顶端**一路淡到中点,中点后再为 CTA 回升。验收:断言停靠点数组 `0%→50%` 严格非递增。
+5c. **⭐ 先看照片调性再定遮罩颜色** —— 亮调照片(白床品/窗光/浅木)配深色罩,**怎么调都发闷发褐**,客户会一直说不够高级而你会一直以为是浓度问题。亮调用 paper 浅罩 + ink 墨字(金色换 `gold-deep`),暗调才用 ink 深罩 + 白字。做成 `heroTone: "dark"|"light"|"gold"` 一个常量可切,三版截图并排给客户看,比描述快十倍。
+6. **上下分区用 `flex` + `min-h` + `mt-auto`** —— 标题贴顶、行动区沉底。**`min-h` 必须真的大于内容高度否则等于没写**(踩过:46rem=690px vs 内容 692px,约束从不生效)。改完量 `section.getBoundingClientRect().height`。
+7. **🚨 Google 评分只展示不进 schema** —— Google 自家评分写进 `aggregateRating` 违反 review snippet 政策、会吃人工处罚。合规做法只有「徽章 + 链接回 Google 商家页」。在 `locations.ts` 字段注释里写死这条防后人手贱。徽章排**一行**(G+数字+星+"on Google"),堆两行显得又大又土。
+8. **「现在营业中」按商家时区算,不是访客时区** —— 静态站从 CDN 发出,访客的钟是错的钟。`Intl.DateTimeFormat` 写死 `timeZone`;SSR 兜底渲染静态营业时间,无 JS 时仍正确。**必须用 `page.clock.setFixedTime()` 跑 ≥9 个用例**(开关门前后 1 分钟 / 午夜 / 冬夏令时),浏览器时区故意设 `Asia/Tokyo` 证明读的是商家时区。
+9. **所有地址包 `maps/dir/?api=1` 一键导航**(手机唤起地图 App),比 `maps/place/` 强;二楼/难找的店加落位卡("Come up to the second floor" + 街道 + 地铁),放营业状态行下方。**地铁线路写全 "on the 6 subway line"**,`the 6 train` 非本地人读成"六条线"。
+10. **完整 NAP 必须在 `<body>` 正文** —— `seo-geo-score.mjs` 的 `stripChrome()` 剥掉 `<header>/<footer>/<nav>`,导航条里的地址不计分。首屏放**空格分隔**的数字(`60 minutes` 匹配、`60-minute` 不匹配)。eyebrow 不要重复 H1 已有的词,换品类词或 power word 多吃一个关键词。
+11. **量,不要猜 —— 但先验证你的尺子** —— hero 调版每轮跑 playwright 扫 320→1920:行数 / 字号 / `scrollWidth>clientWidth` / `img.currentSrc` 选源。时间相关 UI 截图前固定时钟。⚠️ 三个会让你基于错数字返工的陷阱:**`sharp` 的 `.stats()` 忽略前面的 `.extract()`**(返回整图平均,必须先 `.raw().toBuffer()`)、**元素盒子≠字形框**(满宽 flex 容器会把亮部算进平均,用 `Range.getBoundingClientRect()`)、**`element.screenshot()` 会滚动页面**导致 sticky 导航假性遮挡。通用信号:**两个不同位置的元素给出完全相同的对比度数字,一定是测量错了**。
+
 ### 数据诚信(是卖点不是束缚)
 
 - 无验证评分 → 零星标零 aggregateRating;菜单一字不改镜像预约平台(可疑数据报告老板,不擅自修);缺失政策写"来电确认"
@@ -1169,6 +1186,8 @@ Astro 版默认比 React SPA 好 15–25 点 PageSpeed 分,因为零 JS + HTML �
 - `references/atelier-framing.css` — ⭐ 全站照片装裱系统(拱形 plate / 矩形 print / 雕版 menu-card),含 markup 配方,直接粘进 global.css
 - `references/visual-qa-screenshots.mjs` — ⭐ 视觉 QA 截图 harness(系统 Chrome、品牌断言、懒加载/地图/sticky/超高页全部陷阱已编码),含导航溢出扫描片段
 - `references/agoura-playbook.md` — ⭐ Agoura Hills Spa 完整实战 playbook:分栏 hero 定式、导航宽度预算、Fresha 深链、数据诚信、单店长尾架构(根级 slug + /guides 枢纽 + 36 行路线图)、审计扣分速查、图片流水线(=s2400 技巧)、WP 迁移件
+- `references/hero-fullbleed-playbook.md` — ⭐ U Beauty & Foot Spa 满铺 hero playbook(与 agoura 的分栏 hero 互补,照片干净无招牌字时用):`object-cover` 窄屏高度受限陷阱 + `<picture>` 艺术指导、两行标题构造法与实测字号区间、`clamp(vw)` 手机字号、**手写渐变 + 上→中单调(黑条的真正成因)**、**照片调性决定遮罩颜色 + `heroTone` 可切三版**、flex+`mt-auto` 上下分区、Google 评分合规(禁 aggregateRating)、商家时区营业状态、一键导航、**playwright 量测循环与三个测量陷阱**、17 项验收 checklist
+- `references/make-hero-images.mjs` — 桌面+手机 hero 双裁切脚本模板(sharp `.extract().resize(lanczos3).sharpen()`),两个断点各自艺术指导,裁切算式写在注释里,换高清源只改 `src` 重跑
 
 ---
 
