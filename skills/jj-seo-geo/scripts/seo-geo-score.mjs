@@ -7,20 +7,45 @@
  * GEO layer (separate 100-pt score):
  *   FactualDensity 25 | DirectAnswer 20 | Citations 20 | Schema 20 | QuotableFacts 15
  *
- * Cluster benchmarks per scoring-rubric.md (content length by query type):
- *   Informational (guides): 1500+ full / 500-1499 partial / <500 poor
- *   Commercial (services):  1200+ full / 400-1199 partial / <400 poor
- *   Transactional (book):   500+  full / 200-499  partial / <200 poor
- *   Local (lawrence):       400+  full / 150-399  partial / <150 poor
+ * SERP Features layer (separate 100-pt score — readiness for non-blue-link SERP slots):
+ *   FAQ rich result 10 | PAA question-headings 10 | Snippet paragraph 15 |
+ *   Snippet list 10 | Snippet table 10 | Breadcrumb 5 | Review stars 10 |
+ *   Image pack 10 | Local pack 10 | Speakable 5 | Social cards 5
  *
- * Usage: node scripts/audit/seo-geo-score.mjs [--md]
+ * Primary-keyword signal: author-declared <meta name="keywords"> wins (first entry
+ * that actually occurs in the body); falls back to H1 2/3-gram density inference.
+ *
+ * Cluster benchmarks per scoring-rubric.md (content length by query type):
+ *   Informational: 1500+ full / 500-1499 partial / <500 poor
+ *   Commercial:    1200+ full / 400-1199 partial / <400 poor
+ *   Transactional: 500+  full / 200-499  partial / <200 poor
+ *   Local:         400+  full / 150-399  partial / <150 poor
+ *
+ * Four CONFIGURE blocks below need per-project values: #0 project identity,
+ * #1 route→cluster map, #2 authority domains, #3 cluster display order.
+ *
+ * Usage: node scripts/audit/seo-geo-score.mjs [--md] [--json] [--only=<substr>[,<substr>]]
  */
 
 import fs from "node:fs";
 import path from "node:path";
 
+// =============================================================================
+// CONFIGURE #0: project identity.
+//   PROJECT   — label printed on the scorecard header + markdown report
+//   HOST      — bare hostname; links containing it count as internal
+//   BRAND_RE  — brand token expected in every <title> (title scoring -1 if absent)
+//   TITLE_SUFFIX_RE — brand/price suffix stripped before keyword inference
+// =============================================================================
+const PROJECT = "Ten Toes KS-Astro";
+const HOST = "tentoeskansas.com";
+const BRAND_RE = /\bten toes\b/i;
+const TITLE_SUFFIX_RE = /\s*[|·•]\s*ten toes.*$/i;
+
 const DIST = path.resolve("dist");
 const EMIT_MD = process.argv.includes("--md");
+const EMIT_JSON = process.argv.includes("--json");
+const ONLY_ARG = process.argv.find((a) => a.startsWith("--only="));
 
 const STOPWORDS = new Set([
   "the", "a", "an", "and", "or", "but", "of", "in", "on", "at", "to", "for", "with",
@@ -118,13 +143,46 @@ const KW_ADJ_PREFIX = new Set([
   "frequently", "asked",
 ]);
 
-function inferPrimaryKeyword(title, h1, bodyTokens) {
-  // H1 is the canonical signal. Strategy: clean H1, slide a 2/3-token window,
-  // pick the highest-density-in-body candidate that's also present in title.
-  // Drops generic adjectival prefixes ("Professional Foot Reflexology in..." →
-  // pick "foot reflexology" not "professional foot").
+function inferPrimaryKeyword(title, h1, bodyTokens, declared = [], route = "") {
+  // Author-declared <meta name="keywords"> is the primary signal (ported from the
+  // ascending-js-next generation of this script). Eligibility: the phrase must
+  // actually occur in the body at least once (a declared keyword with zero
+  // on-page presence is meta-only stuffing, not the page's topic). Rank by
+  // on-page footprint; slug hits weigh heavily. Brand entries are skipped;
+  // bare single tokens only compete when no multi-word phrase is declared.
+  const bodyStrD = bodyTokens.join(" ");
+  const titleLowerD = (title || "").toLowerCase();
+  const h1LowerD = (h1 || "").toLowerCase();
+  const routeLowerD = route.toLowerCase().replace(/[-/]/g, " ");
+  const occD = (phrase) => {
+    const re = new RegExp("\\b" + phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b", "g");
+    return (bodyStrD.match(re) || []).length;
+  };
+  const cands = declared
+    .map((k) => k.toLowerCase().trim())
+    .filter((k) => k.length > 2 && !BRAND_RE.test(k));
+  const multi = cands.filter((k) => k.includes(" "));
+  let bestDecl = "", bestDeclScore = 0;
+  for (const c of (multi.length ? multi : cands)) {
+    const bodyOcc = occD(c);
+    if (bodyOcc === 0) continue;
+    const toks = c.split(/\s+/).filter((t) => t.length > 2);
+    const score = bodyOcc * 3 +
+      (titleLowerD.includes(c) ? 8 : 0) + (h1LowerD.includes(c) ? 5 : 0) +
+      (routeLowerD.includes(c) ? 10 : 0) +
+      toks.filter((t) => titleLowerD.includes(t)).length * 2 +
+      toks.filter((t) => routeLowerD.includes(t)).length * 2 +
+      toks.filter((t) => h1LowerD.includes(t)).length;
+    if (score > bestDeclScore) { bestDecl = c; bestDeclScore = score; }
+  }
+  if (bestDecl) return bestDecl;
+
+  // Fallback: H1 is the canonical signal. Strategy: clean H1, slide a 2/3-token
+  // window, pick the highest-density-in-body candidate that's also present in
+  // title. Drops generic adjectival prefixes ("Professional Foot Reflexology
+  // in..." → pick "foot reflexology" not "professional foot").
   const cleanHeader = (s) => (s || "").toLowerCase()
-    .replace(/\s*[|·•]\s*ten toes.*$/i, "")
+    .replace(TITLE_SUFFIX_RE, "")
     .replace(/\s*[|·•]\s*from\s*\$\d+.*$/i, "")
     .replace(/\s*[|·•].*$/i, "")
     .replace(/\s*\(.*?\)\s*/g, " ")
@@ -192,6 +250,8 @@ function audit(file) {
   // === Extract structured signals ===
   const title = decode((html.match(/<title>([^<]*)<\/title>/) || [, ""])[1]);
   const desc = decode((html.match(/<meta\s+name="description"\s+content="([^"]*)"/) || [, ""])[1]);
+  const metaKwRaw = decode((html.match(/<meta\s+name="keywords"\s+content="([^"]*)"/) || [, ""])[1]);
+  const declaredKeywords = metaKwRaw ? metaKwRaw.split(",").map(s => s.trim()).filter(Boolean) : [];
   const canonical = (html.match(/<link\s+rel="canonical"\s+href="([^"]*)"/) || [, ""])[1];
   const robots = (html.match(/<meta\s+name="robots"\s+content="([^"]*)"/) || [, ""])[1];
   const ogImage = (html.match(/<meta\s+property="og:image"\s+content="([^"]*)"/) || [, ""])[1];
@@ -224,8 +284,8 @@ function audit(file) {
     const text = decode(m[2].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim());
     return { href, text };
   }).filter(l => l.href && !l.href.startsWith("#") && !l.href.startsWith("javascript:") && !l.href.startsWith("mailto:") && !l.href.startsWith("tel:"));
-  const internalLinks = linkObjs.filter(l => l.href.startsWith("/") || l.href.includes("tentoeskansas.com"));
-  const externalLinks = linkObjs.filter(l => !l.href.startsWith("/") && !l.href.includes("tentoeskansas.com"));
+  const internalLinks = linkObjs.filter(l => l.href.startsWith("/") || l.href.includes(HOST));
+  const externalLinks = linkObjs.filter(l => !l.href.startsWith("/") && !l.href.includes(HOST));
 
   // JSON-LD schema types
   const jsonLdBlocks = [...html.matchAll(/<script\s+type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/gi)].map(m => m[1]);
@@ -241,14 +301,18 @@ function audit(file) {
           if (Array.isArray(node["@type"])) node["@type"].forEach(t => schemaTypes.add(t));
           else schemaTypes.add(node["@type"]);
         }
-        if (node["@graph"]) visit(node["@graph"]);
+        // Recurse into every nested value so types inside hasOfferCatalog,
+        // speakable, mainEntity etc. register too (not just top-level @graph).
+        for (const v of Object.values(node)) {
+          if (v && typeof v === "object") visit(v);
+        }
       };
       visit(parsed);
     } catch { /* malformed JSON-LD — flag separately if needed */ }
   }
 
-  // Primary keyword — picks best 2-3 token phrase via body density
-  const primary = inferPrimaryKeyword(title, h1Matches[0], tokens);
+  // Primary keyword — author-declared meta keywords first, else H1 n-gram density
+  const primary = inferPrimaryKeyword(title, h1Matches[0], tokens, declaredKeywords, route);
   const primaryTokens = primary.split(/\s+/).filter(t => t.length > 2);
   const phraseLower = primary.toLowerCase();
   const bodyLower = body.toLowerCase();
@@ -269,10 +333,10 @@ function audit(file) {
   const namedEntities = (body.match(/\b[A-Z][a-z]{2,}(?:\s+[A-Z][a-z]{2,}){0,3}\b/g) || []).length;
   // CONFIGURE #2: authority-domain regex. Outbound links matching are counted as
   // E-E-A-T / GEO citation signal. Universal anchors (.gov / .edu / mayoclinic /
-  // clevelandclinic / pubmed / NIH subdomains) are kept; project-specific bonus
-  // domains can be appended for industry vertical (e.g., for legal vertical add
-  // /aba\.org|justia\.com/, for medical add /webmd|aafp|hopkinsmedicine/).
-  const authorityLinks = externalLinks.filter(l => /(\.gov|\.edu|nccih\.nih|ncbi\.nlm|mayoclinic|webmd|harvard|cleveland|kuathletics|sportingkc|kcmo\.gov|nih\.gov|amtamassage|acog\.org|aafp\.org|hopkinsmedicine|massagemag|pubmed)/.test(l.href)).length;
+  // clevelandclinic / pubmed / NIH subdomains) are kept; append project-specific
+  // domains for your vertical (legal: /aba\.org|justia\.com/, cloud/B2B:
+  // /aws\.amazon\.com|kubernetes\.io|cncf\.io|nist\.gov/).
+  const authorityLinks = externalLinks.filter(l => /(\.gov|\.edu|nccih\.nih|ncbi\.nlm|mayoclinic|webmd|harvard|cleveland|kuathletics|sportingkc|kcmo\.gov|nih\.gov|amtamassage|acog\.org|aafp\.org|hopkinsmedicine|massagemag|pubmed|aad\.org|sleepfoundation\.org|apa\.org)/.test(l.href)).length;
   const faqSchema = schemaTypes.has("FAQPage");
   const hasArticleSchema = schemaTypes.has("Article");
   const hasServiceSchema = schemaTypes.has("Service");
@@ -288,7 +352,7 @@ function audit(file) {
     else if (title.length > 70) { titleScore -= 3; titleIssues.push(`too long (${title.length}c)`); }
     else if (title.length > 60) { titleScore -= 1; titleIssues.push(`>60c (${title.length}c)`); }
     if (!titleHasKw) { titleScore -= 4; titleIssues.push("primary kw missing"); }
-    if (!/\bten toes\b/i.test(title)) { titleScore -= 1; titleIssues.push("no brand"); }
+    if (!BRAND_RE.test(title)) { titleScore -= 1; titleIssues.push("no brand"); }
   }
   // Meta /5
   let metaScore = 5;
@@ -311,9 +375,12 @@ function audit(file) {
   // Content /25
   let contentScore = 25;
   const contentIssues = [];
+  // Full marks at the rubric benchmark for the query type (informational: 1500+,
+  // others: at the cluster floor). The old floor*1.5 extra was stricter than rubric.
+  const fullAt = queryType === "informational" ? Math.max(floor, 1500) : floor;
   if (wordCount < floor * 0.4) { contentScore -= 18; contentIssues.push(`THIN ${wordCount}w (floor ${floor})`); }
   else if (wordCount < floor) { contentScore -= 8; contentIssues.push(`below floor ${wordCount}w (need ${floor})`); }
-  else if (wordCount < floor * 1.5) contentScore -= 2;
+  else if (wordCount < fullAt) contentScore -= 2;
   // formatting check
   const paraCount = (cleanedHtml.match(/<p\b/gi) || []).length;
   if (paraCount < 5 && wordCount > 500) { contentScore -= 3; contentIssues.push(`only ${paraCount} <p>`); }
@@ -411,6 +478,46 @@ function audit(file) {
   geoQuote = Math.round(geoQuote);
   const geoTotal = geoFactual + geoDirect + geoCite + geoSchema + geoQuote;
 
+  // === SERP FEATURES SCORING (100 pts) — readiness for non-blue-link SERP slots ===
+  // FAQ rich result /10 — FAQPage schema + ≥4 Question nodes
+  const faqQuestionCount = jsonLdBlocks.reduce(
+    (n, b) => n + (b.match(/"@type"\s*:\s*"Question"/g) || []).length, 0);
+  const serpFaq = (faqSchema ? 6 : 0) + (faqQuestionCount >= 4 ? 4 : faqQuestionCount >= 2 ? 2 : 0);
+  // PAA alignment /10 — question-format headings (h2/h3/dt ending in "?")
+  const dtMatches = [...cleanedHtml.matchAll(/<dt\b[^>]*>([\s\S]*?)<\/dt>/gi)]
+    .map(m => decode(m[1].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim()));
+  const questionHeads = [...h2Matches, ...h3Matches, ...dtMatches].filter(h => /\?/.test(h)).length;
+  const serpPaa = questionHeads >= 5 ? 10 : questionHeads >= 3 ? 7 : questionHeads >= 1 ? 3 : 0;
+  // Featured-snippet paragraph /15 — a 35-75 word paragraph directly after an h2/h3
+  const headingParas = [...cleanedHtml.matchAll(/<\/h[23]>\s*(?:<[^>p][^>]*>\s*)*?<p\b[^>]*>([\s\S]*?)<\/p>/gi)]
+    .map(m => decode(m[1].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim()));
+  const snippetParas = headingParas.filter(t => {
+    const w = t.split(/\s+/).filter(Boolean).length;
+    return w >= 35 && w <= 75;
+  }).length;
+  const serpPara = snippetParas >= 2 ? 15 : snippetParas === 1 ? 10 : 0;
+  // List snippet /10 — ≥1 ordered list with ≥3 items
+  const olRich = [...cleanedHtml.matchAll(/<ol\b[^>]*>([\s\S]*?)<\/ol>/gi)]
+    .filter(m => (m[1].match(/<li\b/gi) || []).length >= 3).length;
+  const serpList = olRich >= 1 ? 10 : 0;
+  // Table snippet /10 — ≥1 table with ≥3 rows
+  const tableRich = [...cleanedHtml.matchAll(/<table\b[^>]*>([\s\S]*?)<\/table>/gi)]
+    .filter(m => (m[1].match(/<tr\b/gi) || []).length >= 3).length;
+  const serpTable = tableRich >= 1 ? 10 : 0;
+  // Breadcrumb display /5 · Review stars /10 · Speakable /5
+  const serpCrumb = hasBreadcrumb ? 5 : 0;
+  const serpStars = schemaTypes.has("AggregateRating") ? 10 : 0;
+  const serpSpeak = schemaTypes.has("SpeakableSpecification") ? 5 : 0;
+  // Image pack /10 — ≥2 body images with descriptive alt (≥30 chars)
+  const richAltImgs = allImages.filter(m => ((m[1].match(/alt="([^"]*)"/) || [, ""])[1] || "").length >= 30).length;
+  const serpImage = richAltImgs >= 2 ? 10 : richAltImgs === 1 ? 5 : 0;
+  // Local pack /10 — LocalBusiness carrying geo + opening hours
+  const serpLocal = jsonLdBlocks.some(b => /"geo"/.test(b) && /openingHoursSpecification/i.test(b)) ? 10 : 0;
+  // Social cards /5 — og:image + twitter card
+  const serpSocial = (ogImage ? 3 : 0) + (/<meta\s+name="twitter:card"/.test(html) ? 2 : 0);
+  const serpTotal = serpFaq + serpPaa + serpPara + serpList + serpTable + serpCrumb +
+    serpStars + serpImage + serpLocal + serpSpeak + serpSocial;
+
   return {
     route, cluster, queryType, floor,
     title: { value: title, length: title.length, score: titleScore, issues: titleIssues },
@@ -426,6 +533,13 @@ function audit(file) {
       factualDensity: geoFactual, directAnswer: geoDirect, citations: geoCite,
       schema: geoSchema, quotableFacts: geoQuote, total: geoTotal,
       authorityLinks, numericFacts, faqSchema,
+    },
+    serp: {
+      faq: serpFaq, paa: serpPaa, snippetPara: serpPara, snippetList: serpList,
+      snippetTable: serpTable, breadcrumb: serpCrumb, stars: serpStars,
+      imagePack: serpImage, localPack: serpLocal, speakable: serpSpeak,
+      social: serpSocial, total: serpTotal,
+      questionHeads, snippetParas, faqQuestionCount, richAltImgs,
     },
   };
 }
@@ -445,12 +559,12 @@ const reports = files.map(audit).sort((a, b) => a.route.localeCompare(b.route));
 
 // Per-page table
 console.log("\n=================================================================================");
-console.log(" SEO + GEO SCORECARD — Ten Toes KS-Astro — per seo-geo-claude-skills v9.9.9");
+console.log(` SEO + GEO + SERP SCORECARD — ${PROJECT} — per seo-geo-claude-skills v9.9.9`);
 console.log("=================================================================================\n");
 console.log(`Pages audited: ${reports.length}  |  Generated: ${new Date().toISOString().slice(0, 10)}\n`);
 
 const PAD = {
-  route: 56, cluster: 14, words: 6, seo: 7, geo: 7, grade: 5,
+  route: 56, cluster: 14, words: 6, seo: 6, geo: 6, serp: 6, grade: 6,
 };
 console.log(
   "Route".padEnd(PAD.route) +
@@ -458,6 +572,7 @@ console.log(
   "Words".padStart(PAD.words) + "  " +
   "SEO".padStart(PAD.seo) + "  " +
   "GEO".padStart(PAD.geo) + "  " +
+  "SERP".padStart(PAD.serp) + "  " +
   "Grade".padStart(PAD.grade)
 );
 console.log("-".repeat(110));
@@ -468,6 +583,7 @@ for (const r of reports) {
     String(r.content.words).padStart(PAD.words) + "  " +
     String(r.seoTotal).padStart(PAD.seo) + "  " +
     String(r.geo.total).padStart(PAD.geo) + "  " +
+    String(r.serp.total).padStart(PAD.serp) + "  " +
     gradeOf(r.seoTotal).padStart(PAD.grade)
   );
 }
@@ -481,30 +597,35 @@ for (const r of reports) {
   if (!byCluster.has(r.cluster)) byCluster.set(r.cluster, []);
   byCluster.get(r.cluster).push(r);
 }
+// CONFIGURE #3: cluster display order (any cluster not listed sorts to the end).
 const clusterOrder = ["hub-home", "hub-services", "hub-guides", "lawrence-hub", "service", "guide", "lawrence-seo", "conversion"];
 const sortedClusters = [...byCluster.keys()].sort((a, b) => {
   const ia = clusterOrder.indexOf(a), ib = clusterOrder.indexOf(b);
   return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
 });
-console.log("Cluster".padEnd(16) + "Pages".padStart(7) + "  " + "SEO avg".padStart(9) + "  " + "GEO avg".padStart(9) + "  " + "Min SEO".padStart(9) + "  " + "Max SEO".padStart(9));
-console.log("-".repeat(70));
-let globalSeoSum = 0, globalGeoSum = 0;
+console.log("Cluster".padEnd(16) + "Pages".padStart(7) + "  " + "SEO avg".padStart(9) + "  " + "GEO avg".padStart(9) + "  " + "SERP avg".padStart(9) + "  " + "Min SEO".padStart(9) + "  " + "Min GEO".padStart(9));
+console.log("-".repeat(84));
+let globalSeoSum = 0, globalGeoSum = 0, globalSerpSum = 0;
 for (const c of sortedClusters) {
   const pages = byCluster.get(c);
   const seoAvg = pages.reduce((s, r) => s + r.seoTotal, 0) / pages.length;
   const geoAvg = pages.reduce((s, r) => s + r.geo.total, 0) / pages.length;
+  const serpAvg = pages.reduce((s, r) => s + r.serp.total, 0) / pages.length;
   const seoMin = Math.min(...pages.map(r => r.seoTotal));
-  const seoMax = Math.max(...pages.map(r => r.seoTotal));
+  const geoMin = Math.min(...pages.map(r => r.geo.total));
   globalSeoSum += pages.reduce((s, r) => s + r.seoTotal, 0);
   globalGeoSum += pages.reduce((s, r) => s + r.geo.total, 0);
+  globalSerpSum += pages.reduce((s, r) => s + r.serp.total, 0);
   console.log(c.padEnd(16) + String(pages.length).padStart(7) + "  " +
     seoAvg.toFixed(1).padStart(9) + "  " + geoAvg.toFixed(1).padStart(9) + "  " +
-    String(seoMin).padStart(9) + "  " + String(seoMax).padStart(9));
+    serpAvg.toFixed(1).padStart(9) + "  " +
+    String(seoMin).padStart(9) + "  " + String(geoMin).padStart(9));
 }
-console.log("-".repeat(70));
+console.log("-".repeat(84));
 console.log("OVERALL".padEnd(16) + String(reports.length).padStart(7) + "  " +
   (globalSeoSum / reports.length).toFixed(1).padStart(9) + "  " +
-  (globalGeoSum / reports.length).toFixed(1).padStart(9));
+  (globalGeoSum / reports.length).toFixed(1).padStart(9) + "  " +
+  (globalSerpSum / reports.length).toFixed(1).padStart(9));
 
 // Section average (where weakness lives)
 console.log("\n=================================================================================");
@@ -557,6 +678,24 @@ for (const r of geoWeak) {
   console.log(`    → ${gaps.slice(0, 4).join(" · ") || "ok"}`);
 }
 
+// SERP-feature-weak pages
+console.log("\n=================================================================================");
+console.log(" P2 — SERP FEATURES GAPS (weakest pages for snippets/PAA/rich results)");
+console.log("=================================================================================\n");
+const serpWeak = [...reports].sort((a, b) => a.serp.total - b.serp.total).slice(0, 10);
+for (const r of serpWeak) {
+  const gaps = [];
+  if (r.serp.faq < 10) gaps.push(`FAQ ${r.serp.faq}/10 (${r.serp.faqQuestionCount} Qs)`);
+  if (r.serp.paa < 10) gaps.push(`PAA heads ${r.serp.questionHeads}`);
+  if (r.serp.snippetPara < 15) gaps.push(`snippet-paras ${r.serp.snippetParas}`);
+  if (r.serp.snippetList < 10) gaps.push(`no rich <ol>`);
+  if (r.serp.snippetTable < 10) gaps.push(`no rich <table>`);
+  if (r.serp.imagePack < 10) gaps.push(`rich-alt imgs ${r.serp.richAltImgs}`);
+  if (r.serp.speakable < 5) gaps.push(`no speakable`);
+  console.log(`  [${r.serp.total}/100]  ${r.route}`);
+  console.log(`    → ${gaps.slice(0, 5).join(" · ") || "ok"}`);
+}
+
 // Cross-cutting patterns
 console.log("\n=================================================================================");
 console.log(" CROSS-CUTTING PATTERNS (occurrences across site)");
@@ -575,17 +714,46 @@ for (const [issue, n] of sortedIssues) {
   console.log(`  ${String(n).padStart(3)}×  ${issue}`);
 }
 
-if (EMIT_MD) {
-  let md = `# SEO + GEO Scorecard — Ten Toes KS-Astro\n\n_Per seo-geo-claude-skills/on-page-seo-auditor v9.9.9 · ${new Date().toISOString().slice(0, 10)}_\n\n`;
-  md += `## Per-page scores\n\n| Route | Cluster | Words | SEO/100 | GEO/100 | Grade |\n|---|---|---:|---:|---:|---:|\n`;
-  for (const r of reports) {
-    md += `| ${r.route} | ${r.cluster} | ${r.content.words} | ${r.seoTotal} | ${r.geo.total} | ${gradeOf(r.seoTotal)} |\n`;
+// --only=<substr>[,<substr>] — full per-page breakdown for specific routes
+if (ONLY_ARG) {
+  const needles = ONLY_ARG.slice(7).split(",").filter(Boolean);
+  console.log("\n=================================================================================");
+  console.log(" PER-PAGE DETAIL");
+  console.log("=================================================================================");
+  for (const r of reports.filter(r => needles.some(n => r.route.includes(n)))) {
+    console.log(`\n${r.route}`);
+    console.log(`  SEO ${r.seoTotal}/100 (${gradeOf(r.seoTotal)})   GEO ${r.geo.total}/100   SERP ${r.serp.total}/100   ${r.content.words}w   kw="${r.keywords.primary}" ${r.keywords.density}%`);
+    for (const [name, sec] of [
+      ["Title", r.title], ["Meta", r.meta], ["Headers", r.headers], ["Content", r.content],
+      ["Keywords", r.keywords], ["Links", r.links], ["Images", r.images], ["Technical", r.technical],
+    ]) {
+      console.log(`  ${name.padEnd(10)}${String(sec.score).padStart(5)}  ${sec.issues.join(" · ") || "clean"}`);
+    }
+    console.log(`  GEO        facts ${r.geo.factualDensity}/25 · answer ${r.geo.directAnswer}/20 · cites ${r.geo.citations}/20 · schema ${r.geo.schema}/20 · quotable ${r.geo.quotableFacts}/15`);
+    console.log(`  SERP       faq ${r.serp.faq}/10 · paa ${r.serp.paa}/10 · para ${r.serp.snippetPara}/15 · list ${r.serp.snippetList}/10 · table ${r.serp.snippetTable}/10 · crumb ${r.serp.breadcrumb}/5 · stars ${r.serp.stars}/10 · img ${r.serp.imagePack}/10 · local ${r.serp.localPack}/10 · speak ${r.serp.speakable}/5 · social ${r.serp.social}/5`);
   }
-  md += `\n## Cluster aggregates\n\n| Cluster | Pages | SEO avg | GEO avg |\n|---|---:|---:|---:|\n`;
+}
+
+if (EMIT_JSON) {
+  const outDir = path.resolve("scripts/audit/reports");
+  fs.mkdirSync(outDir, { recursive: true });
+  const outPath = path.join(outDir, "seo-geo-data.json");
+  fs.writeFileSync(outPath, JSON.stringify(reports, null, 1));
+  console.log(`\n✔ JSON data written to ${path.relative(process.cwd(), outPath)}`);
+}
+
+if (EMIT_MD) {
+  let md = `# SEO + GEO + SERP Scorecard — ${PROJECT}\n\n_Per seo-geo-claude-skills/on-page-seo-auditor v9.9.9 · ${new Date().toISOString().slice(0, 10)}_\n\n`;
+  md += `## Per-page scores\n\n| Route | Cluster | Words | SEO/100 | GEO/100 | SERP/100 | Grade |\n|---|---|---:|---:|---:|---:|---:|\n`;
+  for (const r of reports) {
+    md += `| ${r.route} | ${r.cluster} | ${r.content.words} | ${r.seoTotal} | ${r.geo.total} | ${r.serp.total} | ${gradeOf(r.seoTotal)} |\n`;
+  }
+  md += `\n## Cluster aggregates\n\n| Cluster | Pages | SEO avg | GEO avg | SERP avg |\n|---|---:|---:|---:|---:|\n`;
   for (const c of sortedClusters) {
     const pages = byCluster.get(c);
-    md += `| ${c} | ${pages.length} | ${(pages.reduce((s, r) => s + r.seoTotal, 0) / pages.length).toFixed(1)} | ${(pages.reduce((s, r) => s + r.geo.total, 0) / pages.length).toFixed(1)} |\n`;
+    md += `| ${c} | ${pages.length} | ${(pages.reduce((s, r) => s + r.seoTotal, 0) / pages.length).toFixed(1)} | ${(pages.reduce((s, r) => s + r.geo.total, 0) / pages.length).toFixed(1)} | ${(pages.reduce((s, r) => s + r.serp.total, 0) / pages.length).toFixed(1)} |\n`;
   }
+  md += `| **OVERALL** | ${reports.length} | **${(globalSeoSum / reports.length).toFixed(1)}** | **${(globalGeoSum / reports.length).toFixed(1)}** | **${(globalSerpSum / reports.length).toFixed(1)}** |\n`;
   const outDir = path.resolve("scripts/audit/reports");
   fs.mkdirSync(outDir, { recursive: true });
   const outPath = path.join(outDir, "seo-geo-scorecard.md");

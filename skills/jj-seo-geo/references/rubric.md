@@ -82,6 +82,58 @@ Customize via `CONFIGURE #2` in `seo-geo-score.mjs`.
 
 ---
 
+## SERP Features layer (100 pts) — engine extension
+
+Not part of the upstream v9.9.9 rubric. Added because "rank #1" is no longer the
+whole game: on a local-business query the blue link is often below a local pack,
+a People-Also-Ask block, and a featured snippet. This layer scores whether a page
+is *eligible* for those slots. Every check maps to a documented Google feature
+requirement, and every one is verifiable from static HTML.
+
+| Dimension | Pts | Full marks when |
+|---|---:|---|
+| FAQ rich result | 10 | `FAQPage` schema present (6) + ≥4 `Question` nodes (4) |
+| PAA alignment | 10 | ≥5 headings/`<dt>` whose text contains `?` (3 → 3pts, 5+ → 10) |
+| Snippet paragraph | 15 | ≥2 paragraphs of 35-75 words placed immediately after an `</h2>`/`</h3>` |
+| Snippet list | 10 | ≥1 `<ol>` with ≥3 `<li>` |
+| Snippet table | 10 | ≥1 `<table>` with ≥3 `<tr>` |
+| Image pack | 10 | ≥2 body images with `alt` ≥30 chars (1 image → 5) |
+| Review stars | 10 | `AggregateRating` node in the graph |
+| Local pack | 10 | LocalBusiness node carrying both `geo` and `openingHoursSpecification` |
+| Breadcrumb | 5 | `BreadcrumbList` schema |
+| Speakable | 5 | `SpeakableSpecification` node (voice assistants / AI read-aloud) |
+| Social cards | 5 | `og:image` (3) + `twitter:card` (2) |
+
+### Why the 35-75 word window
+
+Google's featured-snippet paragraphs cluster around 40-60 words; below ~35 the
+passage rarely carries a complete answer, above ~75 it gets truncated mid-thought.
+The engine requires the paragraph to *directly follow a heading* because that is
+the passage-ranking unit — a heading that poses the question plus a self-contained
+answer beneath it is the single highest-leverage pattern in this whole layer.
+
+### SERP band interpretation
+
+| Score | Read |
+|---|---|
+| 90-100 | Eligible for snippet, PAA, local pack, and rich results simultaneously. |
+| 70-89 | Wins rich results but leaves snippet/PAA slots to competitors. |
+| 50-69 | Blue link only. Schema exists but the body has no extractable structures. |
+| <50 | Invisible outside the ten blue links. |
+
+### The three cheapest sitewide lifts
+
+Ordered by points-per-edit, measured on a 46-page site that went 67.8 → 90+:
+
+1. **Layout-level schema** (LocalBusiness geo+hours, Speakable, og/twitter) — one
+   edit to the shared layout, +30 on every page at once.
+2. **Convert one existing list into a real `<table>`** in a shared template. A
+   pricing `<ul>` rendered as `<table>` lifted 13 service pages by 10 each.
+3. **One question-form `<h2>` + a 40-60 word answer** per page — +15, and it is
+   the same edit that fixes GEO DirectAnswer.
+
+---
+
 ## How the engine differs from line-by-line WebFetch auditing
 
 The on-page-seo-auditor skill's default mode (WebFetch one URL, score with the rubric) burns 1 model pass per URL. For a 42-page site that's 42 × ~30s = 21 min wall + cost. **This engine encodes the rubric in 580 lines of pure Node** that walks `dist/` in 0.3 seconds and emits the same scorecard structure — same rubric, same dimensions, same grades.

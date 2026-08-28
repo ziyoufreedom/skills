@@ -1,6 +1,6 @@
 ---
 name: jj-seo-geo
-description: Cross-project SEO + GEO audit engine. Use when the user wants to score every built page of a static site against the seo-geo-claude-skills v9.9.9 rubric (100-pt SEO + 100-pt GEO) locally — no per-URL WebFetch. Triggers on "score the whole site", "audit SEO + GEO", "GEO scorecard", "AI citation readiness", "全网打分", "SEO 评分", "全站审计", "评分卡". Drops two reusable Node scripts into the target project's scripts/audit/, configures the project-specific cluster map + NAP, and emits per-page + sitewide markdown scorecards. Outperforms WebFetch'ing the auditor URL by URL — runs over the whole dist/ in <1 second.
+description: Cross-project SEO + GEO + SERP-features audit engine. Use when the user wants to score every built page of a static site against the seo-geo-claude-skills v9.9.9 rubric (100-pt SEO + 100-pt GEO + 100-pt SERP feature readiness) locally — no per-URL WebFetch. Triggers on "score the whole site", "audit SEO + GEO", "GEO scorecard", "AI citation readiness", "SERP features", "featured snippet readiness", "全网打分", "SEO 评分", "全站审计", "评分卡". Drops three reusable Node scripts into the target project's scripts/audit/, configures the project-specific cluster map + NAP, and emits per-page + sitewide scorecards plus JSON for driving fan-out fixes. Outperforms WebFetch'ing the auditor URL by URL — runs over the whole dist/ in <1 second.
 ---
 
 # jj-seo-geo — Local SEO + GEO Scorecard
@@ -20,13 +20,24 @@ A drop-in audit engine that **scores every built page of a static site** against
 For every page in `dist/`:
 1. **SEO score /100** with the 8-dimension breakdown (Title 15 / Meta 5 / Headers 10 / Content 25 / Keywords 15 / Links 10 / Images 10 / Technical 10) — see `references/rubric.md`
 2. **GEO score /100** with 5-dimension breakdown (FactualDensity 25 / DirectAnswer 20 / Citations 20 / Schema 20 / QuotableFacts 15)
-3. **Per-page issue list** (critical / warning / info)
-4. **Cluster aggregates** (avg / min / max per cluster)
-5. **Cross-cutting issue patterns** (the top 20 deductions globally — tells you what to fix to lift the whole site)
-6. **Top P0 worst-scoring pages** + **P1 GEO-weak pages**
-7. Optional `--md` flag writes a full markdown report to `scripts/audit/reports/seo-geo-scorecard.md`
+3. **SERP Features score /100** — eligibility for the non-blue-link slots: FAQ rich result 10 / PAA question-headings 10 / snippet paragraph 15 / snippet list 10 / snippet table 10 / image pack 10 / review stars 10 / local pack 10 / breadcrumb 5 / speakable 5 / social cards 5
+4. **Per-page issue list** (critical / warning / info)
+5. **Cluster aggregates** (avg / min per cluster, all three scores)
+6. **Cross-cutting issue patterns** (the top 20 deductions globally — tells you what to fix to lift the whole site)
+7. **P0 worst-scoring pages** + **P1 GEO-weak pages** + **P2 SERP-feature-weak pages**
+8. `--md` writes the markdown report · `--json` writes `seo-geo-data.json` (per-page sub-scores — feed this to optimization subagents) · `--only=<substr>` prints a full per-dimension breakdown for matching routes
 
-A second script `metadata-audit.mjs` does title/desc/canonical/OG/Twitter/JSON-LD validation including NAP consistency checks against `business.ts`.
+Two companion scripts:
+- `metadata-audit.mjs` — title/desc/canonical/OG/Twitter/JSON-LD validation including NAP consistency against `business.ts`
+- `similarity-audit.mjs` — Jaccard 5-word-shingle comparison of every page pair, flagging near-duplicate landing pages (≥0.70 critical, ≥0.50 high, ≥0.35 watch) with geo tokens masked so city-swap templates are caught
+
+### Primary-keyword resolution
+
+The engine reads author-declared `<meta name="keywords">` as ground truth (first
+entry that actually occurs in the body wins), falling back to H1 n-gram density
+inference. Declaring keywords per page removes the whole class of false negatives
+where the inferrer picks a phrase the author never targeted — on a conversion page
+like `/reviews/` it is the difference between SEO 89 and 100.
 
 ## Install into a target project (Claude's playbook)
 
@@ -38,28 +49,48 @@ Copy `scripts/seo-geo-score.mjs` and `scripts/metadata-audit.mjs` into the targe
 mkdir -p scripts/audit
 cp $SKILL_DIR/scripts/seo-geo-score.mjs scripts/audit/
 cp $SKILL_DIR/scripts/metadata-audit.mjs scripts/audit/
+cp $SKILL_DIR/scripts/similarity-audit.mjs scripts/audit/
 ```
 
 ### Step 2 — Configure project-specific bits
 
 Each script has 3 sections marked `// CONFIGURE:` that the target project needs to customize. Either edit the scripts directly OR (cleaner) create `scripts/audit/seo-geo.config.mjs` exporting the overrides. The script loads the config if it exists.
 
-**Required configuration** for any new project:
+**Required configuration** for any new project — `seo-geo-score.mjs` carries four numbered `CONFIGURE` blocks:
+
+0. **Project identity** (top of file) — `PROJECT` label, `HOST` (internal-link detection), `BRAND_RE` (brand token expected in every title), `TITLE_SUFFIX_RE` (suffix stripped before keyword inference).
 
 1. **`inferCluster(route)`** — map URL routes to clusters with `{ cluster, queryType, floor }`. The default Ten Toes shape (hub-home / hub-services / hub-guides / lawrence-* / service / guide / conversion) won't match your IA. Use the page types listed in `references/integration.md`.
 
-2. **`CANON`** in metadata-audit.mjs — the canonical NAP (name / phone / address / origin / lat / lng). The script flags any JSON-LD that drifts from these. Pull from your project's `business.ts` (or equivalent) at runtime.
+2. **Authority-domain regex** (`authorityLinks` filter) — defaults to `.gov / .edu / nccih / mayo / cleveland / hopkins / amta / acog / aad / pubmed`. Add your vertical's sources (legal: `aba.org`; cloud/B2B: `aws.amazon.com`, `kubernetes.io`, `nist.gov`).
 
-3. **Authority-domain regex** in seo-geo-score.mjs (`authorityLinks` filter) — defaults to `.gov / .edu / nccih / mayo / cleveland / hopkins / amta / acog / pubmed`. Add your industry's authoritative sources if different (e.g., for legal: `aba.org`, for medical: add NIH subdomains).
+3. **`clusterOrder`** — display order for the aggregates table.
+
+Plus **`CANON`** in metadata-audit.mjs — the canonical NAP (name / phone / address / origin / lat / lng). The script flags any JSON-LD that drifts from these. Pull from your project's `business.ts` (or equivalent).
+
+`similarity-audit.mjs` has one knob: the `GEO` regex that masks place names so city-swap templates register as duplicates rather than as distinct pages.
 
 ### Step 3 — Run
 
 ```bash
-bun run build           # or npm run build / pnpm build
-node scripts/audit/seo-geo-score.mjs        # prints stdout
-node scripts/audit/seo-geo-score.mjs --md   # also writes markdown
-node scripts/audit/metadata-audit.mjs --md  # separate title/desc/JSON-LD audit
+bun run build                                    # or npm run build / pnpm build
+node scripts/audit/seo-geo-score.mjs             # prints stdout
+node scripts/audit/seo-geo-score.mjs --md --json # markdown report + machine-readable data
+node scripts/audit/seo-geo-score.mjs --only=/services/,/guides/foo   # per-dimension detail
+node scripts/audit/metadata-audit.mjs --md       # title/desc/JSON-LD/NAP audit
+node scripts/audit/similarity-audit.mjs          # near-duplicate page pairs
 ```
+
+### Driving a fan-out fix with subagents
+
+`--json` exists for this: it writes every page's per-dimension sub-scores and issue
+strings to `scripts/audit/reports/seo-geo-data.json`. Partition the pages by file
+ownership (never let two agents share a file), hand every agent the same scoring
+formulas plus its own route list, and tell each to read its entries from that JSON
+before editing. On a 46-page site, ten parallel agents took SEO 97.4 → 98.8, GEO
+83.4 → 90.2, and SERP 67.8 → 82.2 in one pass, with the finished clusters landing
+at 100 / 97 / 100. Rebuild and re-score centrally between rounds — agents must not
+run builds themselves.
 
 ### Step 4 — Read the output, identify worst pages, fix, re-run
 
@@ -108,7 +139,8 @@ jj-seo-geo/
 ├── SKILL.md                         ← this file
 ├── scripts/
 │   ├── seo-geo-score.mjs            ← drop into scripts/audit/ of target project
-│   └── metadata-audit.mjs           ← drop into scripts/audit/ of target project
+│   ├── metadata-audit.mjs           ← drop into scripts/audit/ of target project
+│   └── similarity-audit.mjs         ← drop into scripts/audit/ of target project
 ├── references/
 │   ├── rubric.md                    ← full 100+100 pt scoring formulas
 │   └── integration.md               ← how to wire into Astro / Next / Nuxt / etc.
