@@ -598,7 +598,7 @@ export default {
 3. **词数** —— Home 600–800 / Service 500–700 / Location 400–600 / Guide 700–1000
 4. **本地细节** —— 真实地名、地标、街道、highway 名;不写 "your city"
 5. **每页结尾 Booking CTA**
-6. **人味写作(Anti-AI Voice)** —— 句长多变,短句 + 长句混用;偶尔破折号、片段句;"honestly"、"here's the thing"、"the short answer is" 这种口头语;避开 "committed to / strive to / designed to enhance"
+6. **人味写作(Anti-AI Voice)** —— 句长多变,短句 + 长句混用;避开 "committed to / strive to / designed to enhance"。⚠️ 但**不要靠"加口头语"来去 AI 味** —— "honestly"、"here's the thing" 这类词撒进机器句式里只会更假。真正的指纹是句式结构(对仗+格言)和信息组织(答案不在第一句),完整清单和可测闸门见 **实战铁律 → 文案:那些"一眼 AI"的句子**
 7. **联系页用 `mailto:`,不做 form input**
 
 ### 页面组件结构(服务 / 门店 / 攻略)
@@ -1151,8 +1151,35 @@ Astro 版默认比 React SPA 好 15–25 点 PageSpeed 分,因为零 JS + HTML �
 1. **照片含招牌大字 → 分栏 hero,永不叠字**:文字放暖纸色面板(亮,不阴森),照片独占一栏,长渐变(to-58%)融合接缝;移动端照片 36vh + 全部内容压进首屏
 2. **Logo 按原始纵横比渲染**(`w-auto` + 真实 width/height),横版字标严禁塞正方形框
 3. **导航加按钮必跑宽度扫描**:390→1920 九档 `scrollWidth > clientWidth` 全 false;中屏用短标签(Gifts/Book),文字字标 xl+ 才显示
+
+3b. **⭐ 手机版 sticky 导航条里必须同时坐着 Call 和 Book,不是只有 Call**(West Valley 沉淀,2026-08)—— local biz 要收的转化就两个:打电话、下预约。**两个都要跟着读者往下滚**。常见默认是 `hidden sm:inline-flex` 把 Book 藏起来,结果在**流量占比最高的设备上**,预约要么埋在汉堡菜单里(两次点击),要么得滚回 hero。
+
+   宽度预算按 **320px** 算,不是按 390:内容宽只有 275px,而字标 124 + Call 53 + Book 55 + 汉堡 36 + 三个 gap 已经超了。**让步顺序写死:字标先让,控件不让。** `max-[359px]:hidden` 把文字字标收掉只留 mark —— mark 本身仍是 home 链接、`aria-label` 里仍有全名,那是这一行里唯一不是控件的东西。两个按钮在 sm 以下用 `!px-3 text-xs`,sm 起恢复 `!px-4 text-sm`。实测 320/360/375/390/414/430 六档全部有富余(最紧的 360px 还剩 30px)。
+
+   连带项:**抽屉里的 Book 行要删掉**。抽屉只在 Book 已经坐在它上方两英寸的尺寸下才打开,留着就是同一个动作在同一屏出现两次。
+
+3c. **⭐ 宽度扫描必须单独查「文字被裁剪」,这一项会从其他所有检查里溜掉** —— 只要品牌名带了 `truncate`(而它应该带,作为不重叠的最后一道防线),**被裁掉的文字不溢出、不换行、不碰撞**:五项检查里前四项全绿,布局看起来完美无缺,只是商家名少了半截。实测第一版扫描报告「320–1920 全部干净」,而那时候导航条上写的是 "West Valley Mas…"。
+
+   判据:`el.scrollWidth > Math.ceil(el.getBoundingClientRect().width)`,量的是**真正带 `overflow:hidden` 的那个元素**。一轮扫描查五项:页面溢出 / header 溢出 / 链接占两个 line box / 相邻两组间距 < 8px / **文字被裁剪**。
+
+   ⚠️ **每个带导航条的页面都要扫,不能只扫首页** —— 当前页的链接是加粗的、比常态宽,所以最长标签所在的那一页才是最坏情况。
+
+   通用原则,比这条规则本身更值钱:**会从现有全部检查里溜掉的失败模式,必须有它自己的检查。**
+
 4. **预约平台深链取代 iframe modal**:Fresha 用 `/booking`、`/gift-cards` 深链直出,`target="_blank" rel="noopener"`;CTA 三件套 Book Online(gold)+ Gift Cards(ghost)+ Call(ghost 带图标),同一 `.btn` 规格;URL 只存 locations.ts 一处
 5. Fresha 菜单侦察:curl venue 页(SSR)抓 JSON-LD OfferCatalog = 含价完整菜单
+
+### Hero 三种定式,先选型再动手 ⭐
+
+| 形态 | 什么时候用 | playbook |
+|---|---|---|
+| **分栏 + 纯色文字面板** | 照片里有招牌大字/价目板,叠字必糊 | `references/agoura-playbook.md` §1 |
+| **满铺照片 + 文字 overlay** | 照片是干净服务特写、宽 ≥1200px | `references/hero-fullbleed-playbook.md` |
+| **分栏 + 拱形装裱 + 装饰件** | 要杂志感/高客单价观感;素材是竖构图或方图;首屏要同时塞下 H1 + 评分 + 营业状态 + 双 CTA + 电话 + 地址 | `references/hero-split-editorial-playbook.md` |
+
+第三种最容易出效果也最容易出细节 bug,八个坑全在该文 §11。其中两个客户**两次都提**的:
+Google 评分不要做成带边框的胶囊(压在真 CTA 上方会被当成第三个按钮),
+以及 hero 地址行只留**地址 + 一个短事实**,把复述按钮的那句删掉。
 
 ### 满铺 Hero 铁律(照片干净、无招牌字时用;完整版见 `references/hero-fullbleed-playbook.md`)⭐
 
@@ -1187,6 +1214,239 @@ Astro 版默认比 React SPA 好 15–25 点 PageSpeed 分,因为零 JS + HTML �
 - 唯一合规 E-E-A-T 句式:"Many California cities require massage professionals to be CAMTC-certified — you're welcome to ask about your therapist's credentials when you book"(行业事实,非店家宣称;各州换机构)
 - 健康声明 hedge + 具名 NCCIH/Mayo/AMTA + 页尾 Sources + not-medical-advice
 
+### 价目表与预订系统对齐(Pacific Head Spa 案例沉淀,2026-08)⭐
+
+**分组必须从预订系统的数据里解析出来,不能靠"看着该怎么分"编。** 这一条是本案最贵的教训:先前按编辑直觉造了一个 `Scrubs & Body Care` 分类,结果同样三行 scrub 在菜单上**印了两遍**;`Scalp Analysis` 同时挂在 scalp 和 add-ons 里。
+
+- Fresha 的菜单在**门店主页**的 `__NEXT_DATA__` → `props.pageProps.data.location.services`,**不在** `/booking` 页(那页的 payload 已经不带菜单了)。
+- `Featured` 货架要跳过 —— 它的每一行都是其他真实分类的副本。
+- **Add-ons 不是服务分类。** 给它一个 `addOn: true` 标记,导出 `serviceGroups` / `addOnGroup`,让编号、每组 CTA、派生价格区间一律只认服务组。否则 "Eye Steam Mask" 会被当成能单独预订的项目。
+- 交付前用脚本逐行对账:按 `时长 + 价格` 做多重集比对,输出"站上多出的 / 站上缺的"。目标是 0/0。
+- 只认一个来源。本案客户明确要求"Fresha 没有就是没有",于是第二预订前端(Setmore)上独有的两条服务连同那条"$70 vs $60 冲突待确认"的注释一起删掉了 —— 冲突本来就只因为第二来源才存在。
+
+**挪动一个菜单行会静默炸掉三样 `link-check` 看不见的东西:**
+
+1. `findPrice("oldGroup", ...)` / `menuById["oldGroup"]` 查表 —— 好的做法是让查表函数**找不到就抛错**,构建当场失败,而不是渲染出空字符串。
+2. `/services#oldAnchor` 深链 —— `link-check` 只验证目标**文件**存在,锚点改名它一声不吭。用 `references/anchor-check.mjs`(读 `dist/`,比对每个 `href="...#frag"` 是否真有对应 `id=`)。
+3. 派生区间(`lowestPrice`、"$X 起")—— 分组成员变了,区间的含义就变了。本案有一句"这一组还能搭配面部护理,最高到 $260",而那条 $260 已经被移去 Facial 分组,`allPackages.high` 变成了 $210(一条按摩+头疗),整句话悄悄变假。
+
+---
+
+### 图像:AI 放大会改写招牌上的字 ⛔
+
+**门店照片里有电话号码、营业时间、门牌号时,绝不能用生成式 AI 放大。** 本案实测:Gemini 图像编辑把 `425-497-9700` 重画成了 `625-467-3783`,"WALK-INS WELCOME" 变成 "WRIKNUNBE ARLGOTAE",而且输出 1344×768 **比原图 1672×941 还小**。这类模型是生成器不是放大器 —— 它重画整个场景,重画的文字必然是乱码。首屏门店图是客人真会照着拨号的地方。
+
+**验收流程:任何经过 AI 处理的门店图,逐处放大核对电话、时段、门牌、海报文案,一处不符即弃用。**
+
+真正能拿到的清晰度提升在编码链上,不在像素数上:
+
+| 症状 | 根因 | 修法 |
+|---|---|---|
+| 粉色霓虹 / 暗底浅字发糊 | JPEG 默认 **4:2:0** 色度抽样把色彩分辨率砍半 | 源图编码加 `chromaSubsampling: "4:4:4"` |
+| 大图在 2 倍屏上发软 | Astro `<Image>` 默认 webp quality 80 | 只给首屏图显式提 `quality`,并**实测**到哪一档文字开始糊(本案 78/82/88 在门牌字上肉眼无差,88 等于白花 74KB) |
+| 竖版卡片图糊得离谱 | **横图被硬裁进竖版格子**:双重惩罚,先裁掉大半画面,再把剩下的放大 | 从原件重裁一个竖版,别复用已经裁过又重压过的衍生图 |
+| `srcset` 里有比源图还宽的档位 | `widths` 写得比源图宽 | `widths` 上限 = 源图宽度,剩下的交给浏览器 |
+
+同一张图在页面上出现两次时,**让两处的 `widths` / `sizes` / `quality` 完全一致** —— 输入相同 Astro 就产出同一个文件,第二处直接复用已下载的那份,省一整套字节。
+
+---
+
+### 排版:信息密度不等于可读性
+
+**事实密集的段落要拆,但拆法受 GEO 约束。** "短答案"块是 AI 答案引擎整段引用的对象,GEO 打分器也在正文**前 1200 字符**里找"定义动词 + 具体数字",所以**不能**把它打散成 bullet 碎片。
+
+可行的折中:
+
+- **文字一字不动,只改断行位置** —— 按句号拆成每句一行(`text.split(/(?<=[.!?])\s+(?=[A-Z])/)`,并加保护:拆出 2–5 句才用,否则原样渲染)。机器读到的字符串完全相同,人得到的是能扫的东西。
+- **数字从从句里拿出来放进 `<dl>`** —— 地址 / 停车 / 营业时间 / 起价这四样是访客真正来找的,让它们成为标签-值的行,而不是藏在"Open every day, 10 AM to 10 PM, with head spa from $70 and..."这种句子里。
+- **三步流程用带编号的卡片**,手机上编号在左、文字在右(竖排每张会到 ~200px 高,一屏只装得下两张,三步式就白设计了)。
+- 客户要"简短答案"时,**把指向另一篇指南的链接删掉**,别自作主张留着导流。
+
+---
+
+### 设计:那些"一眼 AI"的痕迹
+
+- **每个大标题一个斜体衬线强调词** —— 这是模板感最重的一处。改成**正体 + 加重**(用可变字体的真实字重,别让浏览器伪加粗)。本案 73 处一次改完:重定义 utility 而不是逐处改 class。
+- **强调金不能一个色走天下。** 正文/小标签的门槛是 4.5:1,大标题(≥24px)是 **3:1**。所以标题里的金可以比正文的金亮得多 —— 本案 `#a87d00`(3.66:1)对 `#715618`(6.73:1)。**先扫一遍所有用到该 token 的宿主字号再定色**,确认没有小字号在用。
+- **别把别的站的金色直接搬过来。** 姊妹站那个 `hsl(42 74% 58%)` 之所以耀眼,是因为它打在深色照片 + ink 覆盖层上;搬到米白底上只有 1.88:1,等于看不见。
+- 扫光效果:`background-clip: text` + 渐变位移动画,让**最深的色标本身就过 3:1**,亮的只是那道窄光带,这样动画关掉(`prefers-reduced-motion`)时字照样可读。
+
+---
+
+### 文案:那些"一眼 AI"的句子(Harbor Wellness 案例沉淀,2026-08)⭐
+
+客户退长尾稿的原话是三条:**"太 AI 味"、"人读不懂"、"读了很多没用信息"**。三条都不是玄学,拆开全是可数的东西。9 篇重写后每篇的踩雷数从 6.3–12.7/千词降到 **0**,字数平均砍 **22%**,SEO / GEO 一分没掉。
+
+**1. 头号指纹:对仗 + 格言**
+
+一个长句后面跟一个掐短的系动词句,把前面的话反着再说一遍:
+
+- ❌ `Deep tissue is a pressure, not a product.`
+- ❌ `Firm is fine. Pain is information.`
+- ❌ `An hour on the table is a good hour. It is not a diagnosis.`
+- ❌ `Neither option is the upgrade. They answer different questions.`
+
+真人写手一整篇用一次;那版初稿 2,300 词里用了 8 次。这是**最强的机器指纹**,权重也最高。目标 **0**:把话正常说一遍就往下走,不要再回头点一句题。
+
+**2. "读不懂"是结构问题,不是句子问题**
+
+- **H2 写成人们真会搜的问句**,不是名词短语。`How far is Harbor Wellness from Redwood City?` 而不是 `Location & Directions`。
+- **H2 下面第一句就是答案。**`Roughly 2 to 3 miles.` / `Not as its own booking.` / `No.` 然后才解释。初稿要读到第三句才知道多远——这就是"读不懂"的真身。
+- **H1 = 关键词(连续) + 一个最有用的事实**,不要情绪词:`Massage near Redwood City, 5 minutes up El Camino Real`,不是 `booked for two`。
+- **必须有 H3。**一串平铺的 H2 在手机上就是一堵墙。杂志渲染器加一个可选字段就够:
+
+  ```ts
+  subsections?: { heading: string; paragraphs: string[] }[];
+  ```
+
+  渲染在 paragraphs 和 pullQuote 之后、bullets 之前。本案从每页 **0 个正文 H3 → 8–12 个**,老页面不受影响(字段可选)。
+
+**3. "没用信息"的四个来源**
+
+- **对着搜索引擎自言自语** —— `Type "massage near X" into a phone and the results stay inside your own city limits.` 顾客不关心搜索怎么运作。
+- **替读者脑补情绪** —— `…which sounds like a small thing until you have sat through a dinner where you were both too tired to try.` 你不知道他昨晚干了什么,写了就尴尬。
+- **只说"证据有限"的引用** —— 花 30 个词,读者什么也没拿到。**一条引用要带一个数字或一个具名结论**才算数:`NCCIH 说研究有限` ❌ / `2020 年 Midwifery 综述汇总 8 项研究、7 项随机,没有一项属低偏倚风险` ✅。
+- **同一个事实说五遍** —— 初稿的"$189 约合每人 $95"出现在数字卡片、第 2 节、第 3 节、表格和 FAQ 里。一个数字在它该在的地方说一次,搜索场景需要的话 FAQ 再说一次。
+
+**4. 砍字不掉分,反而涨分**
+
+GEO 的 `factualDensity` 算的是**每 100 词的数字密度**。删掉的全是不带事实的水词——分母变小、分子不变,密度反而上升。所以"删"和"SEO"不是取舍关系。反过来说:**如果一段里一个数字都没有,它通常也没有信息。**
+
+**5. 做成可测闸门:`references/prose-check.mjs`**
+
+不要靠感觉判断"AI 味"。把上面几条做成加权计数,先量出基线,再当作重写的验收线:
+
+```bash
+node scripts/audit/prose-check.mjs                  # 全部落地页,按每千词得分排序
+node scripts/audit/prose-check.mjs --only=<slug>    # 打印具体是哪几句踩雷
+node scripts/audit/prose-check.mjs guides           # 把 /guides 也纳入
+```
+
+阈值:**≤4.0/千词**放行,**≥6.0** 判重写。检查项与权重:对仗格言 ×3、`X is not Y. It is Z.` ×3、对搜索自言自语 ×3、脑补读者 ×2、空引用 ×2、重复事实 ×2、口水副词 ×1。
+
+**⚠️ 检测器必须先校准,否则它会指挥 agent 删掉好内容。**本案第一版规则把"引用句里没有数字"一律判为空引用,结果循证类指南被打到 22.9 分(实际 4.3),而当时有 5 个 agent 正拿它当验收标准——差点让它们把合法的定性引用全删了。收窄后的规则是:**同时满足"没有数字"且"整句只有对冲词"**才算空引用。同理,对仗格言那条要限定**系动词**(is/are/was/were),否则 `You can also reverse the order.` 这种正常短句会误报。
+
+**6. 并行重写的组织方式**
+
+- **一个 agent 独占一个批次文件**(`src/lib/landing/l1..l5-*.ts`),永不并行编辑同一文件。
+- **先手工重写一页当标杆**,让后续 agent 读它而不是读抽象描述——"照这个改"比十条规则有效。
+- **把闸门写进 brief**:构建 + 数据校验 + prose-check + 评分,四项自己跑通再回报。
+- Agent 会反过来纠正你的 brief。本案它们查出:一处"本区最近的按摩店"是无法验证的竞品声明、一处 NCCIH 引用张冠李戴(原话在慢性疼痛页且用词是 avoid 不是 skip)、一处"120 分钟预约占用两位技师"的逻辑错误(两位技师只出现在情侣/四手)。**它们报上来的"我删了但你可能想要"清单要逐条看**,本案从中捞回了三处该留的内容。
+
+**7. 一个反直觉的坑**
+
+评分器把 `licensed|certified|insured|years of experience` 当作"专业资质信号",没有就扣 1 分。本案把不实的 "licensed" 改掉后,**16 个页面各掉 1 分**。正确解法不是把词塞回去,而是换成**准确且可查**的说法(加州不发按摩执照,真实凭证是 CAMTC 认证)——分数拿回来了,话也变真了。
+
+**8. ⭐ 逐页打分抓不到"口头禅",必须另外量密度(West Valley 沉淀,2026-08)**
+
+客户指着 `/guides/` 说"太 AI 了"。查下去,真凶不在那一页:**`actually` 全站出现 99 次,30 个页面平均每页 3 次**。
+
+关键在于——**上面第 5 条那套逐页加权打分,当时是全绿的**。口水副词权重 ×1,摊到每页 2,500 词只有 ~0.35/千词,离 4.0 的线远得很。**一个口头禅薄薄地摊在三十个页面上,会从任何逐页指标里溜掉:每一处单看都没问题,是总量在说话。**
+
+所以密度要单独量,按**每万词**算全站总量,不按页:
+
+| 口头禅 | 出事时 | 目标 |
+|---|---|---|
+| `actually` / `actual` | 5.4 / 万词 | **≤ 2.0** |
+| `simply put` / `essentially` / `needless to say` | — | ≤ 2.0 |
+| `it is worth noting` / `at the end of the day` / `when it comes to` | — | ≤ 2.0 |
+
+判据:每万词 1–2 次是一个有习惯的人,5 次是一个有模板的机器。
+
+⚠️ **闸门要读 `dist/`,不要读源码目录。** skill 里那版 `prose-check.mjs` 解析 `src/lib/landing` 和 `src/lib/guides` 两个目录 —— 而这次客户抱怨的那段文案是核心页 `.astro` 里的 PageHero subtitle 和引导段,**那版脚本根本不看核心页**,所以它一次都没报过。读 `dist/` 漏不掉任何一页、看到的就是读者看到的,并且按 `seo-geo-score.mjs` 同一套剥掉 `<header>/<footer>/<nav>`(否则三十页重复的导航会把密度冲垮)。
+
+**9. ⭐ 四种新增硬指纹(任何一次出现都是问题)**
+
+- **报幕**:`Here is what/the/how…`、`These six guides answer…`、`There are three ways to…`、`In this guide,` —— 描述读者眼前已经看得见的东西。`/guides/` 那段引导语列举了六个标题,而那六个标题**正以粗体排在它下方二十像素处**。
+  **这类块要删,不要改写** —— 底下没有东西可留。
+- **搜索词当句子**:`If you are looking for massage near X, Y or Z, …` 这是一条 query,不是一句话。事实(距离/地址)留着,把框架扔了。
+- **虚荣数字**:`Six articles, 15,275 words, …`。字数是写的人在乎的数,不是读的人在乎的数;而且每张卡片下面本来就印着自己的字数和来源。**导语要提供页面没显示的东西**,这是它唯一的存在理由。
+- **自夸美德**:`honest about where the evidence is thin`、以及做成小标题的 `The honest version` / `The honest part` / `That is the honest position`(本案 20 个文件里散着一堆)。**说"我诚实"和"把局限写出来"是两件事**,后者一句顶前者一页。
+
+  ⚠️ **本条曾经在这里举过一个错的正面例子。** 原文推荐 *"A guide that only says good things about massage is an advertisement wearing a lab coat."*,理由是"它不自称诚实而是做到了"。**照这条写出来的站,客户看完是生气的** —— 见下面第 10 条。那句话在商家自己的网站上是在贬低自己的服务,它替换掉的"自夸美德"确实是毛病,但它本身是更大的毛病。删自夸,不要换成自贬。
+
+✅ `references/prose-check.mjs` **已经是这一版**(读 `dist/`、密度表 + 全部硬指纹,含下面第 10 条的 self-sabotage)。直接 `cp` 到项目 `scripts/audit/` 就能跑,只需按项目改 `TICS` 的预算值。
+
+**10. ⭐⭐ 不要写成《消费者报告》—— 商家网站不替读者做"要不要买"的决定(West Valley Massage 案例,2026-08-28)**
+
+客户原话:**"像这些 negative 的为啥要往网站里写呢?"** 全站扫出 **28 处**在劝人别买,分布在 6 篇 guide + FAQ + 区域页 + 服务页。典型:
+
+- `Why do the guides say massage might not help?`(自己给自己出的 FAQ 题)
+- `Nobody can tell you your number` / 副标题 `including us`、正文 `It includes this one.`(**明文叫读者别信本店**)
+- `Nothing here is trying to sell you an hour`(报幕 + 自贬,双料)
+- 一张表,表头 `The claim you will see online | What the evidence supports`,五行里**连着四个 "No."** —— 印在一个卖这项服务的页面上
+- `the appointment that will move the needle most is with a physician`(在按摩页上告诉人最该去的是别处)
+- `stop booking massages and go get a diagnosis. That is a better use of the same money.`
+- `it is the only version of this that gets cheaper over time`(教顾客怎么少花钱)
+
+**根因不是"写了实话",是"把同一个实话反着说"。** NCCIH 对慢性下背痛的原文是 *massage 属于 may improve pain and function 的方法之一* —— 这是**正面结论**,初稿却报道成一个坏消息(`modest`、`mostly short-term`、`smaller than most massage websites imply`)。同一个来源、同样准确、语气相反。所以整改**不需要撒谎**,只需要按来源本来的方向写。
+
+**分界线(唯一要背的一条):**
+
+| 删 | 留 |
+|---|---|
+| 效果对冲:`modest` / `evidence is thin` / `might not help` / `short-lived` 当结论用 | **安全禁忌**:孕早期、糖尿病足、血栓、发热 |
+| 自贬 & 自称诚实:`including us`、`The honest version`、`we will not pretend` | **执业范围**:不诊断、不治疗、不正骨(这是执照法要求,删了反而是风险) |
+| 贬低同行:`most spa websites`、`any studio that quotes one is guessing` | **转诊指引**:新发/剧烈/加重的疼痛先看医生 |
+| 劝退成交:`stop booking`、`a better use of the same money`、`gets cheaper` | 免责声明 `WELLNESS_DISCLAIMER` |
+
+**四个改写手法(本案 28 处全靠这四招,一句谎没说):**
+
+1. **同源反向** —— 把来源的正面结论放句首。`NCCIH reports modest benefit that is mostly short-term` → `NCCIH lists massage among the approaches that may improve pain and function`。
+2. **把限制转成预约建议** —— "效果只持续几周、要连着做几次"听着像缺点,写成 `a run of sessions close together does more than one booked on its own` 就是**促进复购的事实**,而且是同一个事实。
+3. **`instead` 换成 `alongside`** —— 转诊不必是送客。`see a physician instead` → `see a physician first, then book — the two work well together`。安全责任尽到了,人没走。
+4. **表格从"辟谣"翻成"预期管理"** —— 表头 `你会在网上看到的说法 | 证据支持什么` 改成 `人们为什么预约 | 可以期待什么`,并把正面行排在边界行前面。信息一字不少,页面从"劝退"变成"选购"。
+
+**可测闸门**(加进 `prose-check.mjs` 的硬指纹,配额 0):
+
+```js
+const SELF_SABOTAGE = [
+  /\b(?:including us|includes this one|we will not pretend|not going to pretend)\b/i,
+  /\b(?:the honest (?:version|answer|part|pitch)|stated at the strength)\b/i,
+  /\bevidence is thin\b|\bmight not help\b|\bnot worth a promise\b/i,
+  /\b(?:most |other )?spa websites\b|\bis (?:just )?guessing\b|\blab coat\b/i,
+  /\bstop booking\b|\bbetter use of the same money\b|\bgets cheaper over time\b/i,
+];
+```
+
+⚠️ **别把范围扩大到安全条款。** 第一版正则里写了 `/does not treat/`,直接命中了 `It does not diagnose, treat or cure anything` —— 那句是执照法要的,删掉是给客户造风险。**闸门只抓"劝退成交",不抓"划定范围"。**
+
+⚠️ **别扫源码,扫 `dist/`。** 本案 28 处里有 9 处是 `.astro` 里的 JSX 注释(`{/* The honest pitch */}`)和 `.ts` 文件头注释,**根本不渲染**;按源码扫会去改一堆不上线的字,还会漏掉 `shared.ts` 里那条被 5 个页面复用的 `closer`。
+
+**验收**:整改后 SEO 99.4 不变、GEO 90.8 → **90.9**、SERP 82.1 → **82.3**,prose-check 仍 clean。**去掉自贬不掉分** —— 因为掉的全是不带事实的对冲词,`factualDensity` 的分母变小了(同第 4 条)。
+
+---
+
+### 响应式实测:不要用 `--window-size` 量手机
+
+Chrome `--headless=new --window-size=390,844` 在 Windows 上有约 **500px 的窗口下限** —— 页面按 ~500px 排版再裁到 390px 截图,截出来满屏"右边被切",很容易误判成布局 bug。**必须用 CDP 的 `Emulation.setDeviceMetricsOverride`** 才是真视口。
+
+导航条塞多个 CTA 时,量这几项(见 `references/visual-qa-screenshots.mjs` 的思路):
+
+- `document.documentElement.scrollWidth > clientWidth` —— 真横向溢出
+- 每个按钮**内部**是否折行:量**可见 label span 的 `getClientRects().length`**,不要量按钮元素高度(`min-h-11` 会让每个胶囊都是 44px,一律误判)
+- 先给所有 label 加 `whitespace-nowrap` **再**测 —— 否则按钮会靠自己折行"挤"进行宽,溢出被掩盖
+- 最紧的宽度往往不是最窄的那档,而是 **`lg` 断点那一刻**:导航链接出现了,而容器要到 `xl` 才变宽
+
+---
+
+### Astro 语法陷阱
+
+`.map()` 的返回括号里**不能**直接放 `{/* 注释 */}`:
+
+```astro
+{items.map((x) => (
+  {/* 说明 */}        ← 构建报错 Expected ")" but found "$$render"
+  <li>{x}</li>
+))}
+```
+
+返回的是两个相邻表达式。注释要放到 `.map()` 外面。本案连续踩了两次,值得记一笔。
+
+同样,**图片 import 的变量名会和后加的 `const` 撞车** —— `import basin from "..."` 之后再写 `const basin = ...`,Astro 编译出的是 `Cannot access 'basin2' before initialization`,报错信息完全不提是命名冲突。
+
+---
+
 ### 审计与 QA 循环
 
 - 用 **jj-seo-geo skill** 的本地打分器做 fix→build→rescore 循环;高频扣分修法速查表在 playbook §6(meta 110-170c 含词+CTA 动词、H1 决定推断关键词、直答句要空格分隔的数字、证据页 Article schema、conversion 页 floor×1.5 词数)
@@ -1205,7 +1465,10 @@ Astro 版默认比 React SPA 好 15–25 点 PageSpeed 分,因为零 JS + HTML �
 - `references/visual-qa-screenshots.mjs` — ⭐ 视觉 QA 截图 harness(系统 Chrome、品牌断言、懒加载/地图/sticky/超高页全部陷阱已编码),含导航溢出扫描片段
 - `references/agoura-playbook.md` — ⭐ Agoura Hills Spa 完整实战 playbook:分栏 hero 定式、导航宽度预算、Fresha 深链、数据诚信、单店长尾架构(根级 slug + /guides 枢纽 + 36 行路线图)、审计扣分速查、图片流水线(=s2400 技巧)、WP 迁移件
 - `references/hero-fullbleed-playbook.md` — ⭐ U Beauty & Foot Spa 满铺 hero playbook(与 agoura 的分栏 hero 互补,照片干净无招牌字时用):`object-cover` 窄屏高度受限陷阱 + `<picture>` 艺术指导、两行标题构造法与实测字号区间、`clamp(vw)` 手机字号、**手写渐变 + 上→中单调(黑条的真正成因)**、**照片调性决定遮罩颜色 + `heroTone` 可切三版**、flex+`mt-auto` 上下分区、Google 评分合规(禁 aggregateRating)、商家时区营业状态、一键导航、**playwright 量测循环与三个测量陷阱**、**金色 CTA 的咖喱色成因与香槟+墨字反转解法**、20 项验收 checklist
+- `references/hero-split-editorial-playbook.md` — ⭐ 分栏编辑式 hero playbook(Harbor Wellness → LJY Reflexology 两轮沉淀,与上面两种 hero 互补):文字必须在 DOM 前(手机首屏断言)、**120% root 下的竖向节奏表(大跳分组/小跳绑定)**、**信任行一行且不做成按钮 + 分隔竖线断点要量(486px vs 文案栏宽)**、**地址行只留地址+一个短事实 + Google 红图钉 + `<640` 孤立分隔点修法**、装饰件锚内层 wrapper(平板掉出 200px 的 bug)、负右边距 `clamp()` 公式、CTA 尺寸走 scoped `<style>` 的原因、eyebrow 幽灵半行距、可粘 CSS + `GoogleMapPin.astro`、11 项验收
+- `references/anchor-check.mjs` — ⭐ 站内 `#fragment` 校验器(读 dist/,比对每个 href 的锚点是否真有对应 id=)。`link-check` 只验证目标**文件**存在,锚点改名它一声不吭 —— 改过菜单分组、重命名过 section id 之后必跑
 - `references/make-hero-images.mjs` — 桌面+手机 hero 双裁切脚本模板(sharp `.extract().resize(lanczos3).sharpen()`),两个断点各自艺术指导,裁切算式写在注释里,换高清源只改 `src` 重跑
+- `references/prose-check.mjs` — ⭐ 文案"AI 味"可测闸门(Harbor Wellness 沉淀)。加权计数对仗格言 / `X is not Y. It is Z.` / 对搜索自言自语 / 脑补读者 / 空引用 / 重复事实 / 口水副词,按每千词排序,`--only=<slug>` 打印踩雷原句。**阈值 ≤4.0 放行、≥6.0 重写**。规则已按"误报会让 agent 删掉好内容"校准过 —— 空引用要求同时无数字且整句只有对冲词,对仗格言限定系动词。改任何一条前先读文件头的注释
 
 ---
 
